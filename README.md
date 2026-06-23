@@ -13,7 +13,7 @@ See `Tend_Brand_Concept_Spec.md` (sibling folder) for product/brand source of tr
 - [x] Supabase project created, keys in `.env.local`
 - [x] Supabase client wiring (`src/lib/supabase/client.ts`, `server.ts`, `src/proxy.ts` for session refresh)
 - [x] Schema written as a tracked migration: `supabase/migrations/20260623000000_initial_schema.sql`
-- [ ] Link project + push migration (see below — one-time, run by you)
+- [x] Link project + push migration — done, verified live (`transactions` REST endpoint returns 200)
 - [ ] Auth wiring (magic link or email/password)
 - [ ] Route structure + nav beyond the single placeholder page
 

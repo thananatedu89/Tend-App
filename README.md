@@ -38,11 +38,24 @@ source of truth.
 ## Phase 1 — Core loop
 
 - [x] Auth (see Phase 0)
-- [ ] Manual transaction entry
-- [ ] Categories
-- [ ] Transaction list
-- [ ] Real Single Number on the home screen (currently a static placeholder)
+- [x] Categories — 8 calm defaults (Food & drink, Transport, Bills & utilities, Shopping, Health,
+      Entertainment, Income, Other), seeded automatically on signup via a DB trigger
+      (`supabase/migrations/20260623010000_seed_default_categories.sql`); existing accounts backfilled
+      (`20260623020000_backfill_default_categories.sql`)
+- [x] Manual transaction entry (`/transactions/new`) — amount, expense/income toggle, category, date,
+      optional note
+- [x] Transaction list — grouped by day, on the home screen
+- [x] Real number on the home screen: "Spent this month" sums this month's expenses from actual data
+      (not yet "left to spend" — that needs budgets, which is next)
+- [ ] Budgets (total + per-category) — turns "Spent this month" into the real "Left to spend" promise
 
 Note: Supabase's free-tier built-in email service has a low send-rate limit (a few per hour) —
 expect "email rate limit exceeded" if you test signup repeatedly. Not an issue for real beta users
 signing up once; revisit with a custom SMTP provider before a real launch.
+
+### Verified manually (Playwright smoke test, not checked in)
+Signup → login → add transaction → category and amount show correctly on the home screen → sign out
+clears the session → protected routes redirect to `/login`. Caught and fixed two real bugs this way:
+an unhandled "email confirmation required" signup path, and category embeds from Supabase returning a
+singular object rather than an array (no generated DB types yet — `supabase gen types` would close
+this gap, deferred for now).

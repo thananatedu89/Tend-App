@@ -60,7 +60,9 @@ signing up once; revisit with a custom SMTP provider before a real launch.
 - [x] Gentle pace signal (`src/lib/signal.ts`) — compares spend pace to days elapsed in the month,
       three calm states (on track / spending faster than usual / budget used up), no red, no alarms
 - [x] Per-category budget lines — optional per-category monthly allocation, set/edit/clear on `/budget`
-      below the total budget (`budget_lines` table, set/edit only, no spend-vs-allocated display yet)
+      below the total budget (`budget_lines` table)
+- [x] Spend-vs-allocated per category — each category on `/budget` shows a quiet line under its name:
+      "฿700 of ฿500" when allocated, "฿1,740 spent" when not, no red/alarm styling even over budget
 
 ### Verified manually (Playwright smoke test, not checked in each time)
 Signup → login → add transaction → category and amount show correctly on the home screen → sign out
@@ -73,6 +75,10 @@ Supabase returning a singular object rather than an array (no generated DB types
 Per-category budget lines also Playwright-verified: set two category allocations, reload (values
 persist, untouched categories stay blank), clear one and edit another (clears delete the
 `budget_lines` row rather than leaving a stale value), total budget form unaffected.
+
+Spend-vs-allocated display also Playwright-verified: added transactions in two categories, one with
+an allocation set and one without — confirmed the "X of Y" vs "X spent" wording switches correctly,
+including when spend exceeds the allocation (no red/alarm styling).
 
 ## PWA polish
 

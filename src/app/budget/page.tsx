@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { startOfMonth } from "@/lib/month";
+import { formatThb } from "@/lib/format";
 import { setBudget, setBudgetLines } from "./actions";
 
 export default async function BudgetPage({
@@ -30,6 +31,21 @@ export default async function BudgetPage({
   const allocatedByCategory = new Map(
     (budgetLines ?? []).map((line) => [line.category_id, line.allocated_amount]),
   );
+
+  const { data: transactions } = await supabase
+    .from("transactions")
+    .select("category_id, amount")
+    .gte("occurred_at", startOfMonth())
+    .lt("amount", 0);
+
+  const spentByCategory = new Map<string, number>();
+  for (const t of transactions ?? []) {
+    if (!t.category_id) continue;
+    spentByCategory.set(
+      t.category_id,
+      (spentByCategory.get(t.category_id) ?? 0) + Math.abs(t.amount),
+    );
+  }
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-6">
@@ -86,16 +102,28 @@ export default async function BudgetPage({
 
             <form action={setBudgetLines} className="flex flex-col gap-3">
               <input type="hidden" name="budget_id" value={budget.id} />
-              {categories.map((category) => (
+              {categories.map((category) => {
+                const spent = spentByCategory.get(category.id) ?? 0;
+                const allocated = allocatedByCategory.get(category.id);
+                return (
                 <div
                   key={category.id}
                   className="flex items-center justify-between gap-3"
                 >
                   <label
                     htmlFor={`line_${category.id}`}
-                    className="font-body text-sm text-ink/70"
+                    className="flex flex-col"
                   >
-                    {category.name}
+                    <span className="font-body text-sm text-ink/70">
+                      {category.name}
+                    </span>
+                    {spent > 0 && (
+                      <span className="font-body text-xs text-ink/50">
+                        {allocated
+                          ? `${formatThb(spent)} of ${formatThb(allocated)}`
+                          : `${formatThb(spent)} spent`}
+                      </span>
+                    )}
                   </label>
                   <input
                     id={`line_${category.id}`}
@@ -108,7 +136,8 @@ export default async function BudgetPage({
                     className="font-display tabular-nums w-28 rounded-md border border-mist bg-paper px-3 py-2 text-right text-ink outline-none focus:border-sage"
                   />
                 </div>
-              ))}
+                );
+              })}
 
               <button
                 type="submit"

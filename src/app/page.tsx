@@ -1,19 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "./login/actions";
 import { formatThb } from "@/lib/format";
+import { startOfMonth, monthProgress } from "@/lib/month";
+import { paceSignal } from "@/lib/signal";
 
 const dayHeading = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
   day: "numeric",
   month: "short",
 });
-
-function startOfMonth() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
-}
 
 interface TransactionRow {
   id: string;
@@ -35,9 +30,21 @@ export default async function Home() {
     .order("created_at", { ascending: false })
     .overrideTypes<TransactionRow[]>();
 
+  const { data: budget } = await supabase
+    .from("budgets")
+    .select("total_amount")
+    .eq("month", startOfMonth())
+    .maybeSingle();
+
   const spentThisMonth = (transactions ?? [])
     .filter((t) => t.amount < 0)
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+  const incomeThisMonth = (transactions ?? [])
+    .filter((t) => t.amount > 0)
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const leftToSpend = budget ? budget.total_amount - spentThisMonth : null;
 
   const byDay = new Map<string, typeof transactions>();
   for (const t of transactions ?? []) {
@@ -62,16 +69,44 @@ export default async function Home() {
       </header>
 
       <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
-        <p className="font-body text-sm text-sage">Spent this month</p>
-        <p className="font-display text-5xl tabular-nums">
-          {formatThb(spentThisMonth)}
+        <p className="font-body text-sm text-sage">
+          {budget ? "Left to spend this month" : "Spent this month"}
         </p>
-        <a
-          href="/transactions/new"
-          className="font-body mt-2 text-sm text-sage underline"
-        >
-          Add a transaction
-        </a>
+        <p className="font-display text-5xl tabular-nums">
+          {formatThb(leftToSpend ?? spentThisMonth)}
+        </p>
+
+        {budget ? (
+          <p className="font-body text-sm text-ink/60">
+            {paceSignal(spentThisMonth, budget.total_amount, monthProgress())}
+          </p>
+        ) : (
+          <a
+            href="/budget"
+            className="font-body text-sm text-sage underline"
+          >
+            Set a budget for this month
+          </a>
+        )}
+
+        <div className="font-body mt-2 flex gap-4 text-xs text-ink/50">
+          <span>Income {formatThb(incomeThisMonth)}</span>
+          <span>Spent {formatThb(spentThisMonth)}</span>
+        </div>
+
+        <div className="mt-2 flex gap-4">
+          <a
+            href="/transactions/new"
+            className="font-body text-sm text-sage underline"
+          >
+            Add a transaction
+          </a>
+          {budget && (
+            <a href="/budget" className="font-body text-sm text-sage underline">
+              Edit budget
+            </a>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-6 px-6 pb-10">

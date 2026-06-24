@@ -46,16 +46,25 @@ source of truth.
       optional note
 - [x] Transaction list — grouped by day, on the home screen
 - [x] Real number on the home screen: "Spent this month" sums this month's expenses from actual data
-      (not yet "left to spend" — that needs budgets, which is next)
-- [ ] Budgets (total + per-category) — turns "Spent this month" into the real "Left to spend" promise
 
 Note: Supabase's free-tier built-in email service has a low send-rate limit (a few per hour) —
 expect "email rate limit exceeded" if you test signup repeatedly. Not an issue for real beta users
 signing up once; revisit with a custom SMTP provider before a real launch.
 
-### Verified manually (Playwright smoke test, not checked in)
+## Phase 2 — Budgeting
+
+- [x] Set/edit one monthly total budget (`/budget`) — upserts `budgets` by `(user_id, month)`
+- [x] Home screen shows the real "Left to spend this month" once a budget exists, falling back to
+      "Spent this month" before one is set (never shows a number that overclaims what we know)
+- [x] "Where you stand" detail: quiet Income / Spent line beneath the headline number
+- [x] Gentle pace signal (`src/lib/signal.ts`) — compares spend pace to days elapsed in the month,
+      three calm states (on track / spending faster than usual / budget used up), no red, no alarms
+- [ ] Per-category budget lines (`budget_lines` table exists, unused) — likely a Plus-tier feature later
+
+### Verified manually (Playwright smoke test, not checked in each time)
 Signup → login → add transaction → category and amount show correctly on the home screen → sign out
-clears the session → protected routes redirect to `/login`. Caught and fixed two real bugs this way:
-an unhandled "email confirmation required" signup path, and category embeds from Supabase returning a
-singular object rather than an array (no generated DB types yet — `supabase gen types` would close
-this gap, deferred for now).
+clears the session → protected routes redirect to `/login` → set a budget → "Left to spend" and the
+pace signal update correctly → adding a transaction live-updates the number. Caught and fixed two real
+bugs this way: an unhandled "email confirmation required" signup path, and category embeds from
+Supabase returning a singular object rather than an array (no generated DB types yet —
+`supabase gen types` would close this gap, deferred for now).

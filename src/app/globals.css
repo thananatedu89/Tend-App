@@ -6,6 +6,10 @@
   --color-sage: #647b6b;
   --color-clay: #c9a88c;
   --color-mist: #dde3de;
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+  --safe-left: env(safe-area-inset-left);
+  --safe-right: env(safe-area-inset-right);
 }
 
 @theme inline {
@@ -22,8 +26,22 @@ body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-body), sans-serif;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
 }
 
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+/* For position:fixed elements (e.g. a bottom nav/tab bar) that sit outside
+   body's padding flow and need to clear the iOS home indicator/notch directly. */
+.safe-top {
+  padding-top: var(--safe-top);
+}
+
+.safe-bottom {
+  padding-bottom: var(--safe-bottom);
 }

@@ -68,3 +68,16 @@ pace signal update correctly → adding a transaction live-updates the number. C
 bugs this way: an unhandled "email confirmation required" signup path, and category embeds from
 Supabase returning a singular object rather than an array (no generated DB types yet —
 `supabase gen types` would close this gap, deferred for now).
+
+## PWA polish
+
+- [x] Web manifest (`src/app/manifest.ts`) — name, icons, `display: "standalone"`, paper background/theme color
+- [x] App icons (`public/icons/`) generated from the Tend mark, wired into `layout.tsx` metadata (`icons`, `appleWebApp`, `viewport.themeColor`)
+- [x] Minimal service worker (`public/sw.js`) — caches only `public/offline.html`; all real data (transactions, budget) always hits the network, never cached
+- [x] iOS safe-area CSS (`globals.css`) — `env(safe-area-inset-*)` applied to `body`, plus `.safe-top`/`.safe-bottom` utilities for future fixed elements
+- [x] Fixed `src/proxy.ts` auth matcher excluding `manifest.webmanifest`, `icons/`, `sw.js`, `offline.html` from the login redirect — these must be reachable unauthenticated for installability to work at all
+
+Verified manifest/icons/sw.js/offline.html all return 200 (not redirected to `/login`) and render
+correctly via curl + headless Chrome at iPhone viewport dimensions. Real iOS device/Simulator
+confirmation (actual notch/home-indicator spacing) still pending — Chrome emulation can't reproduce
+nonzero safe-area insets.

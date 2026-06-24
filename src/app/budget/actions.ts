@@ -33,3 +33,54 @@ export async function setBudget(formData: FormData) {
   revalidatePath("/");
   redirect("/");
 }
+
+export async function setBudgetLines(formData: FormData) {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) {
+    redirect("/login");
+  }
+
+  const budgetId = formData.get("budget_id");
+  if (typeof budgetId !== "string" || !budgetId) {
+    redirect("/budget?error=Set+a+monthly+budget+first");
+  }
+
+  const toUpsert: { budget_id: string; category_id: string; allocated_amount: number }[] = [];
+  const categoryIdsToClear: string[] = [];
+
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith("line_")) continue;
+    const categoryId = key.slice("line_".length);
+    const amount = Number(value);
+
+    if (typeof value === "string" && value.trim() !== "" && Number.isFinite(amount) && amount > 0) {
+      toUpsert.push({ budget_id: budgetId, category_id: categoryId, allocated_amount: amount });
+    } else {
+      categoryIdsToClear.push(categoryId);
+    }
+  }
+
+  if (toUpsert.length > 0) {
+    const { error } = await supabase
+      .from("budget_lines")
+      .upsert(toUpsert, { onConflict: "budget_id,category_id" });
+    if (error) {
+      redirect(`/budget?error=${encodeURIComponent(error.message)}`);
+    }
+  }
+
+  if (categoryIdsToClear.length > 0) {
+    const { error } = await supabase
+      .from("budget_lines")
+      .delete()
+      .eq("budget_id", budgetId)
+      .in("category_id", categoryIdsToClear);
+    if (error) {
+      redirect(`/budget?error=${encodeURIComponent(error.message)}`);
+    }
+  }
+
+  revalidatePath("/budget");
+  redirect("/budget");
+}

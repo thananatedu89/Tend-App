@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { startOfMonth } from "@/lib/month";
-import { setBudget } from "./actions";
+import { setBudget, setBudgetLines } from "./actions";
 
 export default async function BudgetPage({
   searchParams,
@@ -11,9 +11,25 @@ export default async function BudgetPage({
   const supabase = await createClient();
   const { data: budget } = await supabase
     .from("budgets")
-    .select("total_amount")
+    .select("id, total_amount")
     .eq("month", startOfMonth())
     .maybeSingle();
+
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("id, name")
+    .order("name");
+
+  const { data: budgetLines } = budget
+    ? await supabase
+        .from("budget_lines")
+        .select("category_id, allocated_amount")
+        .eq("budget_id", budget.id)
+    : { data: null };
+
+  const allocatedByCategory = new Map(
+    (budgetLines ?? []).map((line) => [line.category_id, line.allocated_amount]),
+  );
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-6">
@@ -60,6 +76,49 @@ export default async function BudgetPage({
             Cancel
           </a>
         </form>
+
+        {budget && categories && categories.length > 0 && (
+          <div className="mt-10">
+            <h2 className="font-display text-xl mb-1">Category budgets</h2>
+            <p className="font-body text-sm text-ink/60 mb-6">
+              Optional. Leave any category blank to skip it.
+            </p>
+
+            <form action={setBudgetLines} className="flex flex-col gap-3">
+              <input type="hidden" name="budget_id" value={budget.id} />
+              {categories.map((category) => (
+                <div
+                  key={category.id}
+                  className="flex items-center justify-between gap-3"
+                >
+                  <label
+                    htmlFor={`line_${category.id}`}
+                    className="font-body text-sm text-ink/70"
+                  >
+                    {category.name}
+                  </label>
+                  <input
+                    id={`line_${category.id}`}
+                    name={`line_${category.id}`}
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.01"
+                    defaultValue={allocatedByCategory.get(category.id) ?? ""}
+                    className="font-display tabular-nums w-28 rounded-md border border-mist bg-paper px-3 py-2 text-right text-ink outline-none focus:border-sage"
+                  />
+                </div>
+              ))}
+
+              <button
+                type="submit"
+                className="font-body mt-2 rounded-md bg-ink px-3 py-2 text-paper transition-opacity hover:opacity-90"
+              >
+                Save category budgets
+              </button>
+            </form>
+          </div>
+        )}
       </div>
     </main>
   );

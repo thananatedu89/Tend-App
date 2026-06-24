@@ -59,7 +59,8 @@ signing up once; revisit with a custom SMTP provider before a real launch.
 - [x] "Where you stand" detail: quiet Income / Spent line beneath the headline number
 - [x] Gentle pace signal (`src/lib/signal.ts`) — compares spend pace to days elapsed in the month,
       three calm states (on track / spending faster than usual / budget used up), no red, no alarms
-- [ ] Per-category budget lines (`budget_lines` table exists, unused) — likely a Plus-tier feature later
+- [x] Per-category budget lines — optional per-category monthly allocation, set/edit/clear on `/budget`
+      below the total budget (`budget_lines` table, set/edit only, no spend-vs-allocated display yet)
 
 ### Verified manually (Playwright smoke test, not checked in each time)
 Signup → login → add transaction → category and amount show correctly on the home screen → sign out
@@ -68,6 +69,10 @@ pace signal update correctly → adding a transaction live-updates the number. C
 bugs this way: an unhandled "email confirmation required" signup path, and category embeds from
 Supabase returning a singular object rather than an array (no generated DB types yet —
 `supabase gen types` would close this gap, deferred for now).
+
+Per-category budget lines also Playwright-verified: set two category allocations, reload (values
+persist, untouched categories stay blank), clear one and edit another (clears delete the
+`budget_lines` row rather than leaving a stale value), total budget form unaffected.
 
 ## PWA polish
 

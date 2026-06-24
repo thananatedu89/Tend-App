@@ -35,6 +35,10 @@ changes: add a new file to that folder (`npx supabase migration new <name>`), th
 never hand-edit tables in the dashboard once this is set up, so the migrations folder stays the
 source of truth.
 
+Generated types (`src/lib/supabase/types.ts`) are checked in but derived from the schema — after any
+migration, regenerate with `npx supabase gen types typescript --linked > src/lib/supabase/types.ts`.
+Both Supabase client helpers (`client.ts`, `server.ts`) are typed with `Database` from this file.
+
 ## Phase 1 — Core loop
 
 - [x] Auth (see Phase 0)
@@ -69,8 +73,10 @@ Signup → login → add transaction → category and amount show correctly on t
 clears the session → protected routes redirect to `/login` → set a budget → "Left to spend" and the
 pace signal update correctly → adding a transaction live-updates the number. Caught and fixed two real
 bugs this way: an unhandled "email confirmation required" signup path, and category embeds from
-Supabase returning a singular object rather than an array (no generated DB types yet —
-`supabase gen types` would close this gap, deferred for now).
+Supabase returning a singular object rather than an array. The latter is now closed by generated
+DB types (see above) — the manual `TransactionRow` interface and `.overrideTypes()` call on the
+home screen's transactions query were removed once `Database` correctly inferred the embed as a
+single object.
 
 Per-category budget lines also Playwright-verified: set two category allocations, reload (values
 persist, untouched categories stay blank), clear one and edit another (clears delete the

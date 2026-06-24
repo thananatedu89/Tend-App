@@ -10,14 +10,6 @@ const dayHeading = new Intl.DateTimeFormat("en-GB", {
   month: "short",
 });
 
-interface TransactionRow {
-  id: string;
-  amount: number;
-  note: string | null;
-  occurred_at: string;
-  categories: { name: string } | null;
-}
-
 export default async function Home() {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -27,8 +19,7 @@ export default async function Home() {
     .select("id, amount, note, occurred_at, categories(name)")
     .gte("occurred_at", startOfMonth())
     .order("occurred_at", { ascending: false })
-    .order("created_at", { ascending: false })
-    .overrideTypes<TransactionRow[]>();
+    .order("created_at", { ascending: false });
 
   const { data: budget } = await supabase
     .from("budgets")

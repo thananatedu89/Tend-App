@@ -25,16 +25,23 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  const { data } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch (err) {
+    console.error("[proxy] supabase.auth.getUser failed:", err);
+  }
+
   const isLoginPage = request.nextUrl.pathname.startsWith("/login");
 
-  if (!data.user && !isLoginPage) {
+  if (!user && !isLoginPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (data.user && isLoginPage) {
+  if (user && isLoginPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);

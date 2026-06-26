@@ -1,7 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "./login/actions";
 import { formatThb } from "@/lib/format";
-import { startOfMonth, monthProgress } from "@/lib/month";
+import {
+  startOfMonth,
+  monthProgress,
+  parseMonthParam,
+  prevMonthParam,
+  nextMonthParam,
+  isCurrentMonth,
+} from "@/lib/month";
 import { paceSignal } from "@/lib/signal";
 
 const dayHeading = new Intl.DateTimeFormat("en-GB", {
@@ -10,21 +17,36 @@ const dayHeading = new Intl.DateTimeFormat("en-GB", {
   month: "short",
 });
 
-export default async function Home() {
+const monthHeading = new Intl.DateTimeFormat("en-GB", {
+  month: "long",
+  year: "numeric",
+});
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
+  const { month: monthParam } = await searchParams;
+  const monthDate = parseMonthParam(monthParam);
+  const monthStart = startOfMonth(monthDate);
+  const viewing = isCurrentMonth(monthDate);
+
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
 
   const { data: transactions } = await supabase
     .from("transactions")
     .select("id, amount, note, occurred_at, categories(name)")
-    .gte("occurred_at", startOfMonth())
+    .gte("occurred_at", monthStart)
+    .lt("occurred_at", nextMonthParam(monthDate))
     .order("occurred_at", { ascending: false })
     .order("created_at", { ascending: false });
 
   const { data: budget } = await supabase
     .from("budgets")
     .select("total_amount")
-    .eq("month", startOfMonth())
+    .eq("month", monthStart)
     .maybeSingle();
 
   const spentThisMonth = (transactions ?? [])
@@ -59,45 +81,69 @@ export default async function Home() {
         </form>
       </header>
 
+      <div className="flex items-center justify-center gap-4 px-6 pb-2">
+        <a
+          href={`/?month=${prevMonthParam(monthDate)}`}
+          className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors"
+        >
+          ←
+        </a>
+        <span className="font-body text-sm text-ink/60 w-36 text-center">
+          {monthHeading.format(monthDate)}
+        </span>
+        {viewing ? (
+          <span className="w-6" />
+        ) : (
+          <a
+            href={`/?month=${nextMonthParam(monthDate)}`}
+            className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors"
+          >
+            →
+          </a>
+        )}
+      </div>
+
       <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
         <p className="font-body text-sm text-sage">
-          {budget ? "Left to spend this month" : "Spent this month"}
+          {budget ? (viewing ? "Left to spend this month" : "Left to spend") : (viewing ? "Spent this month" : "Spent")}
         </p>
         <p className="font-display text-5xl tabular-nums">
           {formatThb(leftToSpend ?? spentThisMonth)}
         </p>
 
-        {budget ? (
+        {budget && viewing ? (
           <p className="font-body text-sm text-ink/60">
             {paceSignal(spentThisMonth, budget.total_amount, monthProgress())}
           </p>
-        ) : (
+        ) : !budget && viewing ? (
           <a
             href="/budget"
             className="font-body text-sm text-sage underline"
           >
             Set a budget for this month
           </a>
-        )}
+        ) : null}
 
         <div className="font-body mt-2 flex gap-4 text-xs text-ink/50">
           <span>Income {formatThb(incomeThisMonth)}</span>
           <span>Spent {formatThb(spentThisMonth)}</span>
         </div>
 
-        <div className="mt-2 flex gap-4">
-          <a
-            href="/transactions/new"
-            className="font-body text-sm text-sage underline"
-          >
-            Add a transaction
-          </a>
-          {budget && (
-            <a href="/budget" className="font-body text-sm text-sage underline">
-              Edit budget
+        {viewing && (
+          <div className="mt-2 flex gap-4">
+            <a
+              href="/transactions/new"
+              className="font-body text-sm text-sage underline"
+            >
+              Add a transaction
             </a>
-          )}
-        </div>
+            {budget && (
+              <a href="/budget" className="font-body text-sm text-sage underline">
+                Edit budget
+              </a>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-1 flex-col gap-6 px-6 pb-10">
@@ -113,9 +159,10 @@ export default async function Home() {
             </p>
             <div className="flex flex-col divide-y divide-mist rounded-md border border-mist">
               {items?.map((t) => (
-                <div
+                <a
                   key={t.id}
-                  className="flex items-center justify-between px-3 py-2"
+                  href={`/transactions/${t.id}/edit`}
+                  className="flex items-center justify-between px-3 py-2 hover:bg-mist/30 transition-colors"
                 >
                   <div className="flex flex-col">
                     <span className="font-body text-sm">
@@ -131,7 +178,7 @@ export default async function Home() {
                     {t.amount < 0 ? "-" : "+"}
                     {formatThb(Math.abs(t.amount))}
                   </span>
-                </div>
+                </a>
               ))}
             </div>
           </div>

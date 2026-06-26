@@ -155,18 +155,23 @@ export default async function Home({
             </div>
 
             {viewing && (
-              <div className="mt-2 flex gap-4">
-                <a
-                  href="/transactions/new"
-                  className="font-body text-sm text-sage underline"
-                >
-                  Add a transaction
-                </a>
-                {budget && (
-                  <a href="/budget" className="font-body text-sm text-sage underline">
-                    Edit budget
+              <div className="mt-2 flex flex-col items-center gap-2">
+                <div className="flex gap-4">
+                  <a
+                    href="/transactions/new"
+                    className="font-body text-sm text-sage underline"
+                  >
+                    Add a transaction
                   </a>
-                )}
+                  {budget && (
+                    <a href="/budget" className="font-body text-sm text-sage underline">
+                      Edit budget
+                    </a>
+                  )}
+                </div>
+                <a href="/digest" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">
+                  This week
+                </a>
               </div>
             )}
           </div>

@@ -35,6 +35,12 @@ export default async function Home({
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
 
+  const { count: totalCount } = await supabase
+    .from("transactions")
+    .select("*", { count: "exact", head: true });
+
+  const isNewUser = (totalCount ?? 0) === 0;
+
   const { data: transactions } = await supabase
     .from("transactions")
     .select("id, amount, note, occurred_at, categories(name)")
@@ -81,109 +87,130 @@ export default async function Home({
         </form>
       </header>
 
-      <div className="flex items-center justify-center gap-4 px-6 pb-2">
-        <a
-          href={`/?month=${prevMonthParam(monthDate)}`}
-          className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors"
-        >
-          ←
-        </a>
-        <span className="font-body text-sm text-ink/60 w-36 text-center">
-          {monthHeading.format(monthDate)}
-        </span>
-        {viewing ? (
-          <span className="w-6" />
-        ) : (
-          <a
-            href={`/?month=${nextMonthParam(monthDate)}`}
-            className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors"
-          >
-            →
-          </a>
-        )}
-      </div>
-
-      <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
-        <p className="font-body text-sm text-sage">
-          {budget ? (viewing ? "Left to spend this month" : "Left to spend") : (viewing ? "Spent this month" : "Spent")}
-        </p>
-        <p className="font-display text-5xl tabular-nums">
-          {formatThb(leftToSpend ?? spentThisMonth)}
-        </p>
-
-        {budget && viewing ? (
-          <p className="font-body text-sm text-ink/60">
-            {paceSignal(spentThisMonth, budget.total_amount, monthProgress())}
-          </p>
-        ) : !budget && viewing ? (
-          <a
-            href="/budget"
-            className="font-body text-sm text-sage underline"
-          >
-            Set a budget for this month
-          </a>
-        ) : null}
-
-        <div className="font-body mt-2 flex gap-4 text-xs text-ink/50">
-          <span>Income {formatThb(incomeThisMonth)}</span>
-          <span>Spent {formatThb(spentThisMonth)}</span>
-        </div>
-
-        {viewing && (
-          <div className="mt-2 flex gap-4">
+      {isNewUser ? (
+        <div className="flex flex-1 flex-col items-center justify-center px-6 text-center gap-8">
+          <div className="flex flex-col gap-3">
+            <h1 className="font-display text-4xl">Good to have you.</h1>
+            <p className="font-body text-sm text-ink/60 max-w-xs">
+              Add your first transaction to get a clear picture of where you stand.
+            </p>
+          </div>
+          <div className="flex flex-col items-center gap-3 w-full max-w-xs">
             <a
               href="/transactions/new"
-              className="font-body text-sm text-sage underline"
+              className="font-body w-full rounded-md bg-ink px-3 py-2.5 text-paper text-center text-sm transition-opacity hover:opacity-90"
             >
               Add a transaction
             </a>
-            {budget && (
-              <a href="/budget" className="font-body text-sm text-sage underline">
-                Edit budget
+            <a href="/budget" className="font-body text-sm text-sage underline">
+              Set a monthly budget first
+            </a>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-center gap-4 px-6 pb-2">
+            <a
+              href={`/?month=${prevMonthParam(monthDate)}`}
+              className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors"
+            >
+              ←
+            </a>
+            <span className="font-body text-sm text-ink/60 w-36 text-center">
+              {monthHeading.format(monthDate)}
+            </span>
+            {viewing ? (
+              <span className="w-6" />
+            ) : (
+              <a
+                href={`/?month=${nextMonthParam(monthDate)}`}
+                className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors"
+              >
+                →
               </a>
             )}
           </div>
-        )}
-      </div>
 
-      <div className="flex flex-1 flex-col gap-6 px-6 pb-10">
-        {byDay.size === 0 && (
-          <p className="font-body text-center text-sm text-ink/60">
-            Nothing recorded yet this month.
-          </p>
-        )}
-        {[...byDay.entries()].map(([date, items]) => (
-          <div key={date} className="flex flex-col gap-2">
-            <p className="font-body text-sm text-ink/60">
-              {dayHeading.format(new Date(date))}
+          <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+            <p className="font-body text-sm text-sage">
+              {budget ? (viewing ? "Left to spend this month" : "Left to spend") : (viewing ? "Spent this month" : "Spent")}
             </p>
-            <div className="flex flex-col divide-y divide-mist rounded-md border border-mist">
-              {items?.map((t) => (
-                <a
-                  key={t.id}
-                  href={`/transactions/${t.id}/edit`}
-                  className="flex items-center justify-between px-3 py-2 hover:bg-mist/30 transition-colors"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-body text-sm">
-                      {t.categories?.name ?? "Uncategorized"}
-                    </span>
-                    {t.note && (
-                      <span className="font-body text-xs text-ink/60">
-                        {t.note}
-                      </span>
-                    )}
-                  </div>
-                  <span className="font-body tabular-nums text-sm">
-                    {t.amount < 0 ? "-" : "+"}
-                    {formatThb(Math.abs(t.amount))}
-                  </span>
-                </a>
-              ))}
+            <p className="font-display text-5xl tabular-nums">
+              {formatThb(leftToSpend ?? spentThisMonth)}
+            </p>
+
+            {budget && viewing ? (
+              <p className="font-body text-sm text-ink/60">
+                {paceSignal(spentThisMonth, budget.total_amount, monthProgress())}
+              </p>
+            ) : !budget && viewing ? (
+              <a href="/budget" className="font-body text-sm text-sage underline">
+                Set a budget for this month
+              </a>
+            ) : null}
+
+            <div className="font-body mt-2 flex gap-4 text-xs text-ink/50">
+              <span>Income {formatThb(incomeThisMonth)}</span>
+              <span>Spent {formatThb(spentThisMonth)}</span>
             </div>
+
+            {viewing && (
+              <div className="mt-2 flex gap-4">
+                <a
+                  href="/transactions/new"
+                  className="font-body text-sm text-sage underline"
+                >
+                  Add a transaction
+                </a>
+                {budget && (
+                  <a href="/budget" className="font-body text-sm text-sage underline">
+                    Edit budget
+                  </a>
+                )}
+              </div>
+            )}
           </div>
-        ))}
-      </div>
+
+          <div className="flex flex-1 flex-col gap-6 px-6 pb-10">
+            {byDay.size === 0 && (
+              <p className="font-body text-center text-sm text-ink/60">
+                Nothing recorded yet this month.
+              </p>
+            )}
+            {[...byDay.entries()].map(([date, items]) => (
+              <div key={date} className="flex flex-col gap-2">
+                <p className="font-body text-sm text-ink/60">
+                  {dayHeading.format(new Date(date))}
+                </p>
+                <div className="flex flex-col divide-y divide-mist rounded-md border border-mist">
+                  {items?.map((t) => (
+                    <a
+                      key={t.id}
+                      href={`/transactions/${t.id}/edit`}
+                      className="flex items-center justify-between px-3 py-2 hover:bg-mist/30 transition-colors"
+                    >
+                      <div className="flex flex-col">
+                        <span className="font-body text-sm">
+                          {t.categories?.name ?? "Uncategorized"}
+                        </span>
+                        {t.note && (
+                          <span className="font-body text-xs text-ink/60">
+                            {t.note}
+                          </span>
+                        )}
+                      </div>
+                      <span className="font-body tabular-nums text-sm">
+                        {t.amount < 0 ? "-" : "+"}
+                        {formatThb(Math.abs(t.amount))}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </main>
   );
 }

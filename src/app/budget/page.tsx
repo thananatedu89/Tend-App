@@ -93,6 +93,13 @@ export default async function BudgetPage({
           </a>
         </form>
 
+        <a
+          href="/categories"
+          className="font-body mt-6 block text-center text-sm text-sage underline"
+        >
+          Manage categories
+        </a>
+
         {budget && categories && categories.length > 0 && (
           <div className="mt-10">
             <h2 className="font-display text-xl mb-1">Category budgets</h2>

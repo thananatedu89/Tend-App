@@ -65,6 +65,18 @@ export default async function Home({
 
   const leftToSpend = budget ? budget.total_amount - spentThisMonth : null;
 
+  const categorySpending = Object.entries(
+    (transactions ?? [])
+      .filter((t) => t.amount < 0)
+      .reduce<Record<string, number>>((acc, t) => {
+        const name = t.categories?.name ?? "Uncategorized";
+        acc[name] = (acc[name] ?? 0) + Math.abs(t.amount);
+        return acc;
+      }, {})
+  ).sort((a, b) => b[1] - a[1]);
+
+  const maxCategorySpend = categorySpending[0]?.[1] ?? 1;
+
   const byDay = new Map<string, typeof transactions>();
   for (const t of transactions ?? []) {
     const key = t.occurred_at;
@@ -149,6 +161,15 @@ export default async function Home({
               </a>
             ) : null}
 
+            {budget && (
+              <div className="w-48 h-1 bg-mist rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-ink/40 rounded-full transition-all"
+                  style={{ width: `${Math.min(100, (spentThisMonth / budget.total_amount) * 100)}%` }}
+                />
+              </div>
+            )}
+
             <div className="font-body mt-2 flex gap-4 text-xs text-ink/50">
               <span>Income {formatThb(incomeThisMonth)}</span>
               <span>Spent {formatThb(spentThisMonth)}</span>
@@ -178,6 +199,27 @@ export default async function Home({
               </div>
             )}
           </div>
+
+          {categorySpending.length > 0 && (
+            <div className="flex flex-col gap-2 px-6 pb-4">
+              {categorySpending.map(([name, amount]) => (
+                <div key={name} className="flex items-center gap-3">
+                  <span className="font-body text-xs text-ink/50 w-28 text-right truncate">
+                    {name}
+                  </span>
+                  <div className="flex-1 h-1 bg-mist rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-ink/50 rounded-full"
+                      style={{ width: `${(amount / maxCategorySpend) * 100}%` }}
+                    />
+                  </div>
+                  <span className="font-body text-xs tabular-nums text-ink/50 w-16">
+                    {formatThb(amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex flex-1 flex-col gap-6 px-6 pb-10">
             {byDay.size === 0 && (

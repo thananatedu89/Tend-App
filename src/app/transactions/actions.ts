@@ -14,6 +14,7 @@ export async function createTransaction(formData: FormData) {
   const rawAmount = Number(formData.get("amount"));
   const type = String(formData.get("type") ?? "expense");
   const categoryId = String(formData.get("category_id") ?? "");
+  const accountId = String(formData.get("account_id") ?? "");
   const note = String(formData.get("note") ?? "").trim();
   const occurredAt = String(formData.get("occurred_at") ?? "");
 
@@ -26,6 +27,7 @@ export async function createTransaction(formData: FormData) {
   const { error } = await supabase.from("transactions").insert({
     user_id: userData.user.id,
     category_id: categoryId || null,
+    account_id: accountId || null,
     amount,
     note: note || null,
     occurred_at: occurredAt || new Date().toISOString().slice(0, 10),
@@ -51,6 +53,7 @@ export async function updateTransaction(formData: FormData) {
   const rawAmount = Number(formData.get("amount"));
   const type = String(formData.get("type") ?? "expense");
   const categoryId = String(formData.get("category_id") ?? "");
+  const accountId = String(formData.get("account_id") ?? "");
   const note = String(formData.get("note") ?? "").trim();
   const occurredAt = String(formData.get("occurred_at") ?? "");
 
@@ -65,6 +68,7 @@ export async function updateTransaction(formData: FormData) {
     .from("transactions")
     .update({
       category_id: categoryId || null,
+      account_id: accountId || null,
       amount,
       note: note || null,
       occurred_at: occurredAt || new Date().toISOString().slice(0, 10),

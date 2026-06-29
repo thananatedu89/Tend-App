@@ -43,7 +43,7 @@ export default async function Home({
 
   const { data: transactions } = await supabase
     .from("transactions")
-    .select("id, amount, note, occurred_at, categories(name)")
+    .select("id, amount, note, occurred_at, categories(name, icon)")
     .gte("occurred_at", monthStart)
     .lt("occurred_at", nextMonthParam(monthDate))
     .order("occurred_at", { ascending: false })
@@ -69,7 +69,7 @@ export default async function Home({
     (transactions ?? [])
       .filter((t) => t.amount < 0)
       .reduce<Record<string, number>>((acc, t) => {
-        const name = t.categories?.name ?? "Uncategorized";
+        const name = [t.categories?.icon, t.categories?.name ?? "Uncategorized"].filter(Boolean).join(" ");
         acc[name] = (acc[name] ?? 0) + Math.abs(t.amount);
         return acc;
       }, {})
@@ -250,7 +250,7 @@ export default async function Home({
                     >
                       <div className="flex flex-col">
                         <span className="font-body text-sm">
-                          {t.categories?.name ?? "Uncategorized"}
+                          {[t.categories?.icon, t.categories?.name ?? "Uncategorized"].filter(Boolean).join(" ")}
                         </span>
                         {t.note && (
                           <span className="font-body text-xs text-ink/60">

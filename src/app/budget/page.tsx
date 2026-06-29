@@ -26,7 +26,7 @@ export default async function BudgetPage({
 
   const { data: categories } = await supabase
     .from("categories")
-    .select("id, name")
+    .select("id, name, icon")
     .order("name");
 
   const { data: budgetLines } = budget
@@ -177,7 +177,7 @@ export default async function BudgetPage({
                       className="flex flex-col"
                     >
                       <span className="font-body text-sm text-ink/70">
-                        {category.name}
+                        {[category.icon, category.name].filter(Boolean).join(" ")}
                       </span>
                       {spent > 0 && (
                         <span className="font-body text-xs text-ink/50">

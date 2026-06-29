@@ -14,19 +14,19 @@ const monthFmt = new Intl.DateTimeFormat("en-GB", {
 export default async function TransactionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; category?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; imported?: string; skipped?: string }>;
 }) {
-  const { q, category } = await searchParams;
+  const { q, category, imported, skipped } = await searchParams;
   const supabase = await createClient();
 
   const { data: categories } = await supabase
     .from("categories")
-    .select("id, name")
+    .select("id, name, icon")
     .order("name");
 
   let query = supabase
     .from("transactions")
-    .select("id, amount, note, occurred_at, categories(name)")
+    .select("id, amount, note, occurred_at, categories(name, icon), accounts(name)")
     .order("occurred_at", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(300);
@@ -55,15 +55,27 @@ export default async function TransactionsPage({
 
   return (
     <main className="flex flex-1 flex-col">
-      <header className="flex items-center gap-4 px-6 py-4">
-        <a
-          href="/"
-          className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors"
-        >
-          ←
+      <header className="flex items-center justify-between px-6 py-4">
+        <div className="flex items-center gap-4">
+          <a
+            href="/"
+            className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors"
+          >
+            ←
+          </a>
+          <h1 className="font-display text-lg">Transactions</h1>
+        </div>
+        <a href="/import" className="font-body text-xs text-ink/40 hover:text-ink/70 transition-colors">
+          Import
         </a>
-        <h1 className="font-display text-lg">Transactions</h1>
       </header>
+
+      {imported && (
+        <p className="font-body mx-6 mb-2 rounded-md bg-mist/40 px-3 py-2 text-sm text-ink/70">
+          {imported} transaction{Number(imported) !== 1 ? "s" : ""} imported
+          {skipped ? `, ${skipped} skipped` : ""}.
+        </p>
+      )}
 
       <form method="GET" className="flex flex-col gap-2 px-6 pb-2">
         <input
@@ -82,7 +94,7 @@ export default async function TransactionsPage({
             <option value="">All categories</option>
             {categories?.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name}
+                {[c.icon, c.name].filter(Boolean).join(" ")}
               </option>
             ))}
           </select>
@@ -142,11 +154,16 @@ export default async function TransactionsPage({
                       >
                         <div className="flex flex-col">
                           <span className="font-body text-sm">
-                            {t.categories?.name ?? "Uncategorized"}
+                            {[t.categories?.icon, t.categories?.name ?? "Uncategorized"].filter(Boolean).join(" ")}
                           </span>
                           {t.note && (
                             <span className="font-body text-xs text-ink/60">
                               {t.note}
+                            </span>
+                          )}
+                          {t.accounts?.name && (
+                            <span className="font-body text-xs text-ink/40">
+                              {t.accounts.name}
                             </span>
                           )}
                         </div>

@@ -10,7 +10,6 @@ export default async function InsightsPage() {
 
   const now = new Date();
 
-  // Build last 6 months in chronological order
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
     return {
@@ -26,14 +25,13 @@ export default async function InsightsPage() {
 
   const { data: txns } = await supabase
     .from("transactions")
-    .select("amount, occurred_at, categories(name)")
+    .select("amount, occurred_at, categories(name, icon)")
     .gte("occurred_at", months[0].key)
     .order("occurred_at", { ascending: true });
 
-  const categoryMap: Record<string, number> = {};
+  const categoryMap: Record<string, { total: number; icon: string | null }> = {};
 
   for (const t of txns ?? []) {
-    // "2026-06-15" -> "2026-06-01"
     const key = t.occurred_at.slice(0, 7) + "-01";
     const m = monthMap.get(key);
     if (m) {
@@ -45,17 +43,27 @@ export default async function InsightsPage() {
         (t.categories && !Array.isArray(t.categories)
           ? t.categories.name
           : null) ?? "Uncategorized";
-      categoryMap[name] = (categoryMap[name] ?? 0) + Math.abs(t.amount);
+      const icon =
+        t.categories && !Array.isArray(t.categories)
+          ? t.categories.icon
+          : null;
+      if (!categoryMap[name]) categoryMap[name] = { total: 0, icon };
+      categoryMap[name]!.total += Math.abs(t.amount);
     }
   }
 
   const maxSpent = Math.max(...months.map((m) => m.spent), 1);
+  const maxIncome = Math.max(...months.map((m) => m.income), 1);
   const current = months[months.length - 1];
   const prev = months[months.length - 2];
   const delta = current.spent - prev.spent;
 
-  const categories = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]);
-  const maxCategory = categories[0]?.[1] ?? 1;
+  const categories = Object.entries(categoryMap)
+    .map(([name, v]) => ({ name, total: v.total, icon: v.icon }))
+    .sort((a, b) => b.total - a.total);
+  const maxCategory = categories[0]?.total ?? 1;
+
+  const hasIncome = months.some((m) => m.income > 0);
 
   const deltaText =
     prev.spent === 0
@@ -107,6 +115,36 @@ export default async function InsightsPage() {
           </div>
         </section>
 
+        {/* Monthly income trend */}
+        {hasIncome && (
+          <section className="flex flex-col gap-4">
+            <p className="font-body text-sm text-ink/60">Monthly income</p>
+            <div className="flex items-end gap-2" style={{ height: "96px" }}>
+              {months.map((m) => (
+                <div
+                  key={m.key}
+                  className="flex-1 flex flex-col items-center gap-1.5"
+                  style={{ height: "100%" }}
+                >
+                  <div className="w-full flex-1 flex items-end">
+                    <div
+                      className={`w-full rounded-sm transition-all ${
+                        m.key === current.key ? "bg-sage/70" : "bg-sage/30"
+                      }`}
+                      style={{
+                        height: `${Math.max(m.income > 0 ? 2 : 0, (m.income / maxIncome) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="font-body text-[10px] text-ink/40 leading-none">
+                    {m.short}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Month-over-month */}
         <section className="flex flex-col gap-3">
           <p className="font-body text-sm text-ink/60">Month over month</p>
@@ -129,6 +167,16 @@ export default async function InsightsPage() {
           {deltaText && (
             <p className="font-body text-sm text-ink/60">{deltaText}</p>
           )}
+          {hasIncome && current.income > 0 && (
+            <p className="font-body text-sm text-ink/60">
+              Income this month: {formatThb(current.income)}
+              {current.income > current.spent
+                ? ` · ${formatThb(current.income - current.spent)} saved.`
+                : current.income > 0
+                ? ` · ${formatThb(current.spent - current.income)} over income.`
+                : ""}
+            </p>
+          )}
         </section>
 
         {/* Top categories — 6-month view */}
@@ -138,19 +186,19 @@ export default async function InsightsPage() {
               Top categories, 6 months
             </p>
             <div className="flex flex-col gap-2">
-              {categories.slice(0, 8).map(([name, total]) => (
-                <div key={name} className="flex items-center gap-3">
+              {categories.slice(0, 8).map((cat) => (
+                <div key={cat.name} className="flex items-center gap-3">
                   <span className="font-body text-xs text-ink/50 w-28 text-right truncate">
-                    {name}
+                    {[cat.icon, cat.name].filter(Boolean).join(" ")}
                   </span>
                   <div className="flex-1 h-1 bg-mist rounded-full overflow-hidden">
                     <div
                       className="h-full bg-ink/40 rounded-full"
-                      style={{ width: `${(total / maxCategory) * 100}%` }}
+                      style={{ width: `${(cat.total / maxCategory) * 100}%` }}
                     />
                   </div>
                   <span className="font-body text-xs tabular-nums text-ink/50 w-20 text-right">
-                    {formatThb(total)}
+                    {formatThb(cat.total)}
                   </span>
                 </div>
               ))}

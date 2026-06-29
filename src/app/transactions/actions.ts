@@ -36,7 +36,8 @@ export async function createTransaction(formData: FormData) {
   }
 
   revalidatePath("/");
-  redirect("/");
+  revalidatePath("/transactions");
+  redirect("/transactions");
 }
 
 export async function updateTransaction(formData: FormData) {
@@ -76,7 +77,8 @@ export async function updateTransaction(formData: FormData) {
   }
 
   revalidatePath("/");
-  redirect("/");
+  revalidatePath("/transactions");
+  redirect("/transactions");
 }
 
 export async function deleteTransaction(formData: FormData) {
@@ -100,5 +102,6 @@ export async function deleteTransaction(formData: FormData) {
   }
 
   revalidatePath("/");
-  redirect("/");
+  revalidatePath("/transactions");
+  redirect("/transactions");
 }

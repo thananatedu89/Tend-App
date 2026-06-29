@@ -155,7 +155,7 @@ export default async function EditTransactionPage({
         </form>
 
         <a
-          href="/"
+          href="/transactions"
           className="font-body mt-4 block text-center text-sm text-sage underline"
         >
           Cancel

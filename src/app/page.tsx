@@ -190,8 +190,17 @@ export default async function Home({
                     </a>
                   )}
                 </div>
+                <a
+                  href="/transactions"
+                  className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors"
+                >
+                  All transactions
+                </a>
                 <a href="/digest" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">
                   This week
+                </a>
+                <a href="/insights" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">
+                  Insights
                 </a>
                 <a href="/api/export" className="font-body text-xs text-ink/30 hover:text-ink/50 transition-colors">
                   Export data

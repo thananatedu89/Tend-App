@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 function Row({
   href,
@@ -134,9 +135,9 @@ export default async function SettingsPage() {
             Appearance
           </p>
           <div className="flex flex-col divide-y divide-mist rounded-2xl border border-mist bg-surface overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3.5">
-              <span className="font-body text-sm">Theme</span>
-              <span className="font-body text-xs text-ink/40">System</span>
+            <div className="flex items-center justify-between gap-4 px-4 py-3.5">
+              <span className="font-body text-sm shrink-0">Theme</span>
+              <ThemeToggle />
             </div>
             <div className="flex items-center justify-between px-4 py-3.5">
               <span className="font-body text-sm">Currency</span>

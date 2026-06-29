@@ -53,6 +53,10 @@ export default function RootLayout({
       lang="en"
       className={`${fraunces.variable} ${inter.variable} ${ibmPlexSansThai.variable} h-full antialiased`}
     >
+      <head>
+        {/* Read theme from localStorage before first paint to avoid flash */}
+        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('tend_theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}` }} />
+      </head>
       <body className="min-h-full flex flex-col bg-paper text-ink">
         <RegisterServiceWorker />
         <OnboardingGate />

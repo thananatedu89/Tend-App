@@ -9,6 +9,7 @@ import {
   isCurrentMonth,
 } from "@/lib/month";
 import { paceSignal } from "@/lib/signal";
+import { quickLog } from "./actions";
 
 const dayHeading = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
@@ -34,25 +35,29 @@ export default async function Home({
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
 
-  const { count: totalCount } = await supabase
-    .from("transactions")
-    .select("*", { count: "exact", head: true });
+  const [
+    { count: totalCount },
+    { data: transactions },
+    { data: budget },
+    { data: categories },
+  ] = await Promise.all([
+    supabase.from("transactions").select("*", { count: "exact", head: true }),
+    supabase
+      .from("transactions")
+      .select("id, amount, note, occurred_at, category_id, categories(name, icon)")
+      .gte("occurred_at", monthStart)
+      .lt("occurred_at", nextMonthParam(monthDate))
+      .order("occurred_at", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("budgets")
+      .select("id, total_amount, budget_lines(category_id, allocated_amount)")
+      .eq("month", monthStart)
+      .maybeSingle(),
+    supabase.from("categories").select("id, name, icon").order("name"),
+  ]);
 
   const isNewUser = (totalCount ?? 0) === 0;
-
-  const { data: transactions } = await supabase
-    .from("transactions")
-    .select("id, amount, note, occurred_at, category_id, categories(name, icon)")
-    .gte("occurred_at", monthStart)
-    .lt("occurred_at", nextMonthParam(monthDate))
-    .order("occurred_at", { ascending: false })
-    .order("created_at", { ascending: false });
-
-  const { data: budget } = await supabase
-    .from("budgets")
-    .select("total_amount")
-    .eq("month", monthStart)
-    .maybeSingle();
 
   const spentThisMonth = (transactions ?? [])
     .filter((t) => t.amount < 0)
@@ -64,17 +69,29 @@ export default async function Home({
 
   const leftToSpend = budget ? budget.total_amount - spentThisMonth : null;
 
-  const categorySpending = Object.entries(
-    (transactions ?? [])
-      .filter((t) => t.amount < 0)
-      .reduce<Record<string, number>>((acc, t) => {
-        const name = [t.categories?.icon, t.categories?.name ?? "Uncategorized"].filter(Boolean).join(" ");
-        acc[name] = (acc[name] ?? 0) + Math.abs(t.amount);
-        return acc;
-      }, {})
-  ).sort((a, b) => b[1] - a[1]);
+  type CatEntry = { amount: number; displayName: string; categoryId: string | null };
+  const catAcc = new Map<string, CatEntry>();
+  for (const t of (transactions ?? []).filter((t) => t.amount < 0)) {
+    const key = t.category_id ?? "__none__";
+    const entry = catAcc.get(key);
+    if (entry) {
+      entry.amount += Math.abs(t.amount);
+    } else {
+      catAcc.set(key, {
+        amount: Math.abs(t.amount),
+        displayName: [t.categories?.icon, t.categories?.name ?? "Uncategorized"]
+          .filter(Boolean)
+          .join(" "),
+        categoryId: t.category_id ?? null,
+      });
+    }
+  }
+  const categorySpending = [...catAcc.values()].sort((a, b) => b.amount - a.amount);
+  const maxCategorySpend = categorySpending[0]?.amount ?? 1;
 
-  const maxCategorySpend = categorySpending[0]?.[1] ?? 1;
+  const allocatedByCategory = new Map(
+    (budget?.budget_lines ?? []).map((l) => [l.category_id, l.allocated_amount]),
+  );
 
   const byDay = new Map<string, typeof transactions>();
   for (const t of transactions ?? []) {
@@ -262,29 +279,89 @@ export default async function Home({
                 <a href="/report" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">
                   Monthly report
                 </a>
+                <a href="/year" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">
+                  Year overview
+                </a>
               </div>
             )}
           </div>
 
           {categorySpending.length > 0 && (
             <div className="flex flex-col gap-2 px-6 pb-4">
-              {categorySpending.map(([name, amount]) => (
-                <div key={name} className="flex items-center gap-3">
-                  <span className="font-body text-xs text-ink/50 w-28 text-right truncate">
-                    {name}
-                  </span>
-                  <div className="flex-1 h-1 bg-mist rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-ink/50 rounded-full"
-                      style={{ width: `${(amount / maxCategorySpend) * 100}%` }}
-                    />
+              {categorySpending.map(({ displayName, amount, categoryId }) => {
+                const allocated = categoryId
+                  ? allocatedByCategory.get(categoryId)
+                  : undefined;
+                const overBudget = allocated !== undefined && amount > allocated;
+                return (
+                  <div key={categoryId ?? "__none__"} className="flex items-center gap-3">
+                    <span className="font-body text-xs text-ink/50 w-28 text-right truncate">
+                      {displayName}
+                    </span>
+                    <div className="flex-1 h-1 bg-mist rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${overBudget ? "bg-clay/60" : "bg-ink/50"}`}
+                        style={{ width: `${(amount / maxCategorySpend) * 100}%` }}
+                      />
+                    </div>
+                    <div className="flex flex-col items-end w-20">
+                      <span className="font-body text-xs tabular-nums text-ink/50">
+                        {formatThb(amount)}
+                      </span>
+                      {allocated && (
+                        <span
+                          className={`font-body text-[10px] tabular-nums ${
+                            overBudget ? "text-clay/70" : "text-ink/30"
+                          }`}
+                        >
+                          of {formatThb(allocated)}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <span className="font-body text-xs tabular-nums text-ink/50 w-16">
-                    {formatThb(amount)}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
+          )}
+
+          {/* Quick log */}
+          {viewing && categories && categories.length > 0 && (
+            <form
+              action={quickLog}
+              className="flex items-center gap-2 px-6 pb-4"
+            >
+              <select
+                name="category_id"
+                required
+                defaultValue=""
+                className="font-body flex-1 min-w-0 rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-sage"
+              >
+                <option value="" disabled>
+                  Category
+                </option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {[c.icon, c.name].filter(Boolean).join(" ")}
+                  </option>
+                ))}
+              </select>
+              <input
+                name="amount"
+                type="number"
+                inputMode="decimal"
+                min="0.01"
+                step="0.01"
+                required
+                placeholder="฿0"
+                className="font-display tabular-nums w-24 rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-sage"
+              />
+              <button
+                type="submit"
+                className="font-body rounded-md bg-ink px-3 py-2 text-sm text-paper transition-opacity hover:opacity-90 whitespace-nowrap"
+              >
+                Log
+              </button>
+            </form>
           )}
 
           {missedRecurrings.length > 0 && (

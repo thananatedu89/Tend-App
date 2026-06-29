@@ -60,6 +60,35 @@ export default async function SettingsPage() {
 
         <section>
           <p className="font-body text-xs uppercase tracking-wide text-ink/40 mb-3">
+            Reports
+          </p>
+          <div className="flex flex-col divide-y divide-mist rounded-md border border-mist">
+            <a
+              href="/report"
+              className="flex items-center justify-between px-4 py-3 hover:bg-mist/30 transition-colors"
+            >
+              <span className="font-body text-sm">Monthly report</span>
+              <span className="font-body text-xs text-ink/40">→</span>
+            </a>
+            <a
+              href="/year"
+              className="flex items-center justify-between px-4 py-3 hover:bg-mist/30 transition-colors"
+            >
+              <span className="font-body text-sm">Year overview</span>
+              <span className="font-body text-xs text-ink/40">→</span>
+            </a>
+            <a
+              href="/insights"
+              className="flex items-center justify-between px-4 py-3 hover:bg-mist/30 transition-colors"
+            >
+              <span className="font-body text-sm">Insights</span>
+              <span className="font-body text-xs text-ink/40">→</span>
+            </a>
+          </div>
+        </section>
+
+        <section>
+          <p className="font-body text-xs uppercase tracking-wide text-ink/40 mb-3">
             Data
           </p>
           <div className="flex flex-col divide-y divide-mist rounded-md border border-mist">

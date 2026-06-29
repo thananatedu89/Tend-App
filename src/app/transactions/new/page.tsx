@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createTransaction } from "../actions";
 import { formatThb } from "@/lib/format";
+import { NoteInput } from "@/components/NoteInput";
 
 export default async function NewTransactionPage({
   searchParams,
@@ -10,10 +11,17 @@ export default async function NewTransactionPage({
   const { error, from: fromId } = await searchParams;
   const supabase = await createClient();
 
-  const [{ data: categories }, { data: accounts }] = await Promise.all([
-    supabase.from("categories").select("id, name, icon").order("name"),
-    supabase.from("accounts").select("id, name").order("name"),
-  ]);
+  const [{ data: categories }, { data: accounts }, { data: recentNotes }] =
+    await Promise.all([
+      supabase.from("categories").select("id, name, icon").order("name"),
+      supabase.from("accounts").select("id, name").order("name"),
+      supabase
+        .from("transactions")
+        .select("note, category_id")
+        .not("note", "is", null)
+        .order("occurred_at", { ascending: false })
+        .limit(150),
+    ]);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -40,6 +48,19 @@ export default async function NewTransactionPage({
       };
     }
   }
+
+  // Note suggestions: recent distinct notes for the prefilled category
+  const notesByCategory = new Map<string, string[]>();
+  for (const t of recentNotes ?? []) {
+    if (!t.note) continue;
+    const key = t.category_id ?? "__none__";
+    const arr = notesByCategory.get(key) ?? [];
+    if (!arr.includes(t.note) && arr.length < 8) arr.push(t.note);
+    notesByCategory.set(key, arr);
+  }
+  const noteSuggestions = prefill?.categoryId
+    ? (notesByCategory.get(prefill.categoryId) ?? [])
+    : [];
 
   // Recurring suggestions: expenses seen more than once in the last 90 days
   const since = new Date();
@@ -238,12 +259,9 @@ export default async function NewTransactionPage({
               <label htmlFor="note" className="font-body text-sm text-ink/70">
                 Note (optional)
               </label>
-              <input
-                id="note"
-                name="note"
-                type="text"
+              <NoteInput
                 defaultValue={prefill?.note ?? ""}
-                className="font-body rounded-md border border-mist bg-paper px-3 py-2 text-ink outline-none focus:border-sage"
+                suggestions={noteSuggestions}
               />
             </div>
 

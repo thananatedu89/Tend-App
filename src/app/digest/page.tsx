@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatThb } from "@/lib/format";
 import { startOfMonth } from "@/lib/month";
+import { CategoryIcon } from "@/components/CategoryIcon";
 import {
   startOfWeek,
   parseWeekParam,
@@ -134,68 +135,82 @@ export default async function DigestPage({
     : `${dateFmt.format(weekStart)} – ${dateFmt.format(weekEnd)}`;
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center px-6">
-      <div className="w-full max-w-sm">
-        <div className="flex items-center justify-center gap-4 mb-8">
-          <a
-            href={`/digest?week=${prevWeekParam(weekStart)}`}
-            className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors"
-          >
-            ←
-          </a>
-          <span className="font-body text-sm text-ink/60 w-44 text-center">
-            {isCurrent ? "This week" : `Week of ${weekLabel}`}
+    <main className="flex flex-1 flex-col px-6 pt-10 pb-12">
+      <div className="w-full max-w-sm mx-auto">
+
+        {/* Week navigation */}
+        <div className="flex items-center justify-between mb-10">
+          <a href={`/digest?week=${prevWeekParam(weekStart)}`} className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">←</a>
+          <span className="font-body text-sm text-ink/60">
+            {isCurrent ? "This week" : weekLabel}
           </span>
           {isCurrent ? (
             <span className="w-6" />
           ) : (
-            <a
-              href={`/digest?week=${nextWeekParam(weekStart)}`}
-              className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors"
-            >
-              →
-            </a>
+            <a href={`/digest?week=${nextWeekParam(weekStart)}`} className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">→</a>
           )}
         </div>
 
-        <div className="flex flex-col items-center text-center gap-2 mb-10">
-          <p className="font-body text-sm text-sage">
-            {isCurrent ? "Spent this week" : "Spent"}
+        {/* Option B — Figure & notes */}
+        <div style={{ marginBottom: "24px" }}>
+          {/* Eyebrow */}
+          <p style={{ fontSize: "11px", fontWeight: 500, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--color-sage)", marginBottom: "10px" }}>
+            Your week{!isCurrent ? ` · ${weekLabel}` : ""}
           </p>
-          <p className="font-display text-5xl tabular-nums">
+
+          {/* Hero number */}
+          <p
+            className="font-display tabular-nums"
+            style={{ fontSize: "46px", fontWeight: 500, letterSpacing: "-.025em", lineHeight: 1, color: "var(--color-ink)" }}
+          >
             {formatThb(totalSpent)}
           </p>
-          {totalIncome > 0 && (
-            <p className="font-body text-xs text-ink/50">
-              Income {formatThb(totalIncome)}
+
+          {/* Calm comparison line */}
+          {weekCompare && (
+            <p style={{ fontSize: "14.5px", color: "var(--color-ink)", opacity: 0.55, marginTop: "10px" }}>
+              {weekCompare}
             </p>
           )}
-          {weekCompare && (
-            <p className="font-body text-xs text-ink/50">{weekCompare}</p>
-          )}
-          {paceText && (
-            <p className="font-body text-xs text-ink/50">{paceText}</p>
+          {paceText && !weekCompare && (
+            <p style={{ fontSize: "14.5px", color: "var(--color-ink)", opacity: 0.55, marginTop: "10px" }}>
+              {paceText}
+            </p>
           )}
         </div>
 
+        {/* Category rows */}
         {categoryRows.length > 0 ? (
-          <div className="flex flex-col divide-y divide-mist rounded-md border border-mist">
-            {categoryRows.map(({ name, icon, amount }) => (
+          <div>
+            {categoryRows.map(({ name, icon, amount }, i) => (
               <div
                 key={name}
-                className="flex items-center justify-between px-3 py-2.5"
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  padding: "12px 0",
+                  borderBottom: i < categoryRows.length - 1 ? "1px solid var(--color-mist)" : "none",
+                  fontSize: "14px",
+                }}
               >
-                <span className="font-body text-sm">
-                  {[icon, name].filter(Boolean).join(" ")}
+                <span style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--color-ink)" }}>
+                  <CategoryIcon icon={icon} size={14} />
+                  {name}
                 </span>
-                <span className="font-body tabular-nums text-sm">
+                <span className="tabular-nums" style={{ color: "var(--color-ink)" }}>
                   {formatThb(amount)}
                 </span>
               </div>
             ))}
+            {totalIncome > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderTop: "1px solid var(--color-mist)", fontSize: "14px", marginTop: "4px" }}>
+                <span style={{ color: "var(--color-sage)" }}>Income</span>
+                <span className="tabular-nums" style={{ color: "var(--color-sage)" }}>+{formatThb(totalIncome)}</span>
+              </div>
+            )}
           </div>
         ) : (
-          <p className="font-body text-center text-sm text-ink/60">
+          <p className="font-body text-center text-sm text-ink/60 py-6">
             Nothing recorded this week.
           </p>
         )}

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createTransaction } from "../actions";
 import { formatThb } from "@/lib/format";
 import { NoteInput } from "@/components/NoteInput";
+import { catOptionLabel } from "@/components/CategoryIcon";
 
 export default async function NewTransactionPage({
   searchParams,
@@ -109,15 +110,21 @@ export default async function NewTransactionPage({
     .slice(0, 5);
 
   const catLabel = (name: string | null, icon: string | null) =>
-    [icon, name ?? "Uncategorized"].filter(Boolean).join(" ");
+    catOptionLabel(name, icon);
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center px-6">
-      <div className="w-full max-w-sm">
-        <h1 className="font-display text-3xl mb-1">Add a transaction</h1>
-        <p className="font-body text-sm text-ink/60 mb-8">
-          A quiet record of where the money went.
-        </p>
+    <main className="flex flex-1 flex-col justify-end min-h-screen bg-ink/20">
+      <div className="w-full bg-surface rounded-t-3xl px-6 pt-4 pb-10 overflow-y-auto max-h-[92svh]">
+        {/* Drag handle */}
+        <div className="flex justify-center mb-5">
+          <span className="block w-10 h-1 rounded-full bg-mist" />
+        </div>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="font-display text-2xl">Add a transaction</h1>
+          <a href="/" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">
+            Cancel
+          </a>
+        </div>
 
         {/* Recurring suggestions — hidden when pre-filling */}
         {!prefill && suggestions.length > 0 && (
@@ -269,16 +276,10 @@ export default async function NewTransactionPage({
 
             <button
               type="submit"
-              className="font-body mt-2 rounded-md bg-ink px-3 py-2 text-paper transition-opacity hover:opacity-90"
+              className="font-body mt-2 rounded-full bg-ink px-3 py-3 text-paper transition-opacity hover:opacity-90"
             >
               Add
             </button>
-            <a
-              href="/"
-              className="font-body text-center text-sm text-sage underline"
-            >
-              Cancel
-            </a>
           </form>
         )}
       </div>

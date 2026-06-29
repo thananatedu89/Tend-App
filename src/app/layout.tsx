@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Inter } from "next/font/google";
+import { Fraunces, Inter, IBM_Plex_Sans_Thai } from "next/font/google";
 import "./globals.css";
 import { RegisterServiceWorker } from "./register-sw";
 import { BottomNav } from "@/components/BottomNav";
+import { OnboardingGate } from "@/components/OnboardingGate";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -14,6 +15,12 @@ const inter = Inter({
   variable: "--font-inter",
   weight: ["400", "500"],
   subsets: ["latin"],
+});
+
+const ibmPlexSansThai = IBM_Plex_Sans_Thai({
+  variable: "--font-ibm-plex-sans-thai",
+  weight: ["400", "500"],
+  subsets: ["thai"],
 });
 
 export const metadata: Metadata = {
@@ -44,10 +51,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${fraunces.variable} ${inter.variable} h-full antialiased`}
+      className={`${fraunces.variable} ${inter.variable} ${ibmPlexSansThai.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-paper text-ink">
         <RegisterServiceWorker />
+        <OnboardingGate />
         {children}
         {/* spacer so fixed bottom nav never covers content */}
         <div className="h-16 shrink-0" aria-hidden="true" />

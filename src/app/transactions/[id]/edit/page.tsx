@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { updateTransaction, deleteTransaction } from "../../actions";
+import { catOptionLabel } from "@/components/CategoryIcon";
 
 export default async function EditTransactionPage({
   params,
@@ -34,7 +35,7 @@ export default async function EditTransactionPage({
   const absAmount = Math.abs(transaction.amount);
 
   const catLabel = (name: string, icon: string | null) =>
-    [icon, name].filter(Boolean).join(" ");
+    catOptionLabel(name, icon);
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-6">

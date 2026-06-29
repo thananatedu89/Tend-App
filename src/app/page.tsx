@@ -9,18 +9,37 @@ import {
   isCurrentMonth,
 } from "@/lib/month";
 import { paceSignal } from "@/lib/signal";
-import { quickLog } from "./actions";
-
-const dayHeading = new Intl.DateTimeFormat("en-GB", {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-});
+import { CategoryIcon } from "@/components/CategoryIcon";
 
 const monthHeading = new Intl.DateTimeFormat("en-GB", {
   month: "long",
   year: "numeric",
 });
+
+const dayFmt = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+});
+
+// "Monday, 23 June" — matches the exploration's date style
+const heroDateFmt = new Intl.DateTimeFormat("en-GB", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function daysLeftInMonth(now: Date): number {
+  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return last.getDate() - now.getDate();
+}
 
 export default async function Home({
   searchParams,
@@ -35,11 +54,17 @@ export default async function Home({
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
 
+  // Week bounds for the digest card
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay());
+  const weekStartStr = weekStart.toISOString().slice(0, 10);
+
   const [
     { count: totalCount },
     { data: transactions },
     { data: budget },
-    { data: categories },
+    { data: weekTxns },
   ] = await Promise.all([
     supabase.from("transactions").select("*", { count: "exact", head: true }),
     supabase
@@ -54,7 +79,11 @@ export default async function Home({
       .select("id, total_amount, budget_lines(category_id, allocated_amount)")
       .eq("month", monthStart)
       .maybeSingle(),
-    supabase.from("categories").select("id, name, icon").order("name"),
+    supabase
+      .from("transactions")
+      .select("amount")
+      .lt("amount", 0)
+      .gte("occurred_at", weekStartStr),
   ]);
 
   const isNewUser = (totalCount ?? 0) === 0;
@@ -63,44 +92,11 @@ export default async function Home({
     .filter((t) => t.amount < 0)
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
-  const incomeThisMonth = (transactions ?? [])
-    .filter((t) => t.amount > 0)
-    .reduce((sum, t) => sum + t.amount, 0);
-
   const leftToSpend = budget ? budget.total_amount - spentThisMonth : null;
 
-  type CatEntry = { amount: number; displayName: string; categoryId: string | null };
-  const catAcc = new Map<string, CatEntry>();
-  for (const t of (transactions ?? []).filter((t) => t.amount < 0)) {
-    const key = t.category_id ?? "__none__";
-    const entry = catAcc.get(key);
-    if (entry) {
-      entry.amount += Math.abs(t.amount);
-    } else {
-      catAcc.set(key, {
-        amount: Math.abs(t.amount),
-        displayName: [t.categories?.icon, t.categories?.name ?? "Uncategorized"]
-          .filter(Boolean)
-          .join(" "),
-        categoryId: t.category_id ?? null,
-      });
-    }
-  }
-  const categorySpending = [...catAcc.values()].sort((a, b) => b.amount - a.amount);
-  const maxCategorySpend = categorySpending[0]?.amount ?? 1;
+  const weekSpend = (weekTxns ?? []).reduce((s, t) => s + Math.abs(t.amount), 0);
 
-  const allocatedByCategory = new Map(
-    (budget?.budget_lines ?? []).map((l) => [l.category_id, l.allocated_amount]),
-  );
-
-  const byDay = new Map<string, typeof transactions>();
-  for (const t of transactions ?? []) {
-    const key = t.occurred_at;
-    byDay.set(key, [...(byDay.get(key) ?? []), t]);
-  }
-
-  // Missed recurrings: expenses that appeared 2+ times in prior 90 days
-  // but haven't been recorded yet this month
+  // Missed recurrings
   interface MissedItem {
     id: string;
     amount: number;
@@ -159,226 +155,143 @@ export default async function Home({
       .slice(0, 3);
   }
 
+  // 4 most recent transactions for the activity preview
+  const recentFour = (transactions ?? []).slice(0, 4);
+
+  const daysLeft = daysLeftInMonth(now);
+
   return (
     <main className="flex flex-1 flex-col">
-      <header className="flex items-center justify-between px-6 py-4">
-        <span className="font-body text-sm text-ink/60">
-          {userData.user?.email}
-        </span>
-        <a href="/settings" className="font-body text-sm text-sage underline">
-          Settings
-        </a>
-      </header>
-
       {isNewUser ? (
-        <div className="flex flex-1 flex-col items-center justify-center px-6 text-center gap-8">
-          <div className="flex flex-col gap-3">
-            <h1 className="font-display text-4xl">Good to have you.</h1>
-            <p className="font-body text-sm text-ink/60 max-w-xs">
+        /* Empty / first-run state */
+        <div className="flex flex-1 flex-col justify-between px-6 pt-14 pb-10">
+          <div className="flex flex-col gap-2">
+            <p
+              style={{ fontSize: "12px", fontWeight: 500, letterSpacing: ".05em", color: "var(--color-ink)" }}
+              className="opacity-40"
+            >
+              {heroDateFmt.format(now)}
+            </p>
+            <h1
+              className="font-display"
+              style={{ fontSize: "22px", fontWeight: 500, color: "var(--color-ink)", marginTop: "2px" }}
+            >
+              {greeting()}
+            </h1>
+            <p className="font-body text-sm text-ink/60 mt-6 max-w-xs">
               Add your first transaction to get a clear picture of where you stand.
             </p>
           </div>
-          <div className="flex flex-col items-center gap-3 w-full max-w-xs">
+          <div className="flex flex-col gap-3">
             <a
               href="/transactions/new"
-              className="font-body w-full rounded-md bg-ink px-3 py-2.5 text-paper text-center text-sm transition-opacity hover:opacity-90"
+              className="font-body w-full rounded-full bg-ink text-paper text-center transition-opacity hover:opacity-90"
+              style={{ padding: "15px", fontSize: "15px", fontWeight: 500 }}
             >
-              Add a transaction
+              Add your first amount
             </a>
-            <a href="/budget" className="font-body text-sm text-sage underline">
+            <a href="/budget" className="font-body text-center text-sage" style={{ fontSize: "14px", fontWeight: 500 }}>
               Set a monthly budget first
             </a>
           </div>
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-center gap-4 px-6 pb-2">
-            <a
-              href={`/?month=${prevMonthParam(monthDate)}`}
-              className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors"
-            >
-              ←
-            </a>
-            <span className="font-body text-sm text-ink/60 w-36 text-center">
-              {monthHeading.format(monthDate)}
-            </span>
-            {viewing ? (
-              <span className="w-6" />
-            ) : (
-              <a
-                href={`/?month=${nextMonthParam(monthDate)}`}
-                className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors"
-              >
-                →
-              </a>
-            )}
-          </div>
+          {/* Month nav — only shown when browsing past months */}
+          {!viewing && (
+            <div className="flex items-center justify-center gap-4 px-6 pt-4">
+              <a href={`/?month=${prevMonthParam(monthDate)}`} className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">←</a>
+              <span className="font-body text-sm text-ink/60 w-36 text-center">{monthHeading.format(monthDate)}</span>
+              <a href={`/?month=${nextMonthParam(monthDate)}`} className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">→</a>
+            </div>
+          )}
 
-          <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
-            <p className="font-body text-sm text-sage">
-              {budget ? (viewing ? "Left to spend this month" : "Left to spend") : (viewing ? "Spent this month" : "Spent")}
+          {/* The Single Number — Option A Editorial */}
+          <div className="px-6 pt-9 pb-8">
+            {/* Date + greeting */}
+            <p style={{ fontSize: "12px", fontWeight: 500, color: "var(--color-ink)" }} className="opacity-40">
+              {heroDateFmt.format(now)}
             </p>
-            <p className="font-display text-5xl tabular-nums">
+            <p
+              className="font-display"
+              style={{ fontSize: "22px", fontWeight: 500, color: "var(--color-ink)", marginTop: "2px", marginBottom: viewing ? "34px" : "16px" }}
+            >
+              {greeting()}
+            </p>
+
+            {/* Eyebrow */}
+            <p style={{ fontSize: "11px", fontWeight: 500, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--color-ink)", opacity: 0.4 }}>
+              {budget
+                ? viewing ? "Left to spend this month" : `Left to spend · ${monthHeading.format(monthDate)}`
+                : viewing ? "Spent this month" : `Spent · ${monthHeading.format(monthDate)}`}
+            </p>
+
+            {/* Hero number */}
+            <p
+              className="font-display tabular-nums"
+              style={{ fontSize: "48px", fontWeight: 500, letterSpacing: "-0.025em", lineHeight: 1.02, margin: "9px 0 12px" }}
+            >
               {formatThb(leftToSpend ?? spentThisMonth)}
             </p>
 
-            {budget && viewing ? (
-              <p className="font-body text-sm text-ink/60">
+            {/* Calm status line */}
+            {budget && viewing && (
+              <p style={{ fontSize: "14.5px", lineHeight: 1.55, color: "var(--color-ink)", opacity: 0.55 }}>
                 {paceSignal(spentThisMonth, budget.total_amount, monthProgress())}
               </p>
-            ) : !budget && viewing ? (
-              <a href="/budget" className="font-body text-sm text-sage underline">
-                Set a budget for this month
+            )}
+            {!budget && viewing && (
+              <a href="/budget" className="font-body text-sage" style={{ fontSize: "14.5px" }}>
+                Set a budget for this month →
               </a>
-            ) : null}
+            )}
 
+            {/* Progress bar + metadata */}
             {budget && (
-              <div className="w-48 h-1 bg-mist rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-ink/40 rounded-full transition-all"
-                  style={{ width: `${Math.min(100, (spentThisMonth / budget.total_amount) * 100)}%` }}
-                />
+              <div className="mt-6">
+                <div style={{ height: "6px", borderRadius: "999px", background: "var(--color-mist)", overflow: "hidden" }}>
+                  <div
+                    style={{
+                      width: `${Math.min(100, (spentThisMonth / budget.total_amount) * 100)}%`,
+                      height: "100%",
+                      background: "var(--color-sage)",
+                      borderRadius: "999px",
+                      transition: "width .3s ease",
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between mt-2" style={{ fontSize: "12px", color: "var(--color-ink)", opacity: 0.4 }}>
+                  <span className="tabular-nums">{formatThb(spentThisMonth)} spent</span>
+                  {viewing && <span>{daysLeft} day{daysLeft !== 1 ? "s" : ""} left</span>}
+                </div>
               </div>
             )}
 
-            <div className="font-body mt-2 flex gap-4 text-xs text-ink/50">
-              <span>Income {formatThb(incomeThisMonth)}</span>
-              <span>Spent {formatThb(spentThisMonth)}</span>
-            </div>
-
+            {/* Past month navigation */}
             {viewing && (
-              <div className="mt-2 flex flex-col items-center gap-2">
-                <div className="flex gap-4">
-                  <a
-                    href="/transactions/new"
-                    className="font-body text-sm text-sage underline"
-                  >
-                    Add a transaction
-                  </a>
-                  {budget && (
-                    <a href="/budget" className="font-body text-sm text-sage underline">
-                      Edit budget
-                    </a>
-                  )}
-                </div>
-                <a
-                  href="/transactions"
-                  className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors"
-                >
-                  All transactions
-                </a>
-                <a href="/digest" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">
-                  This week
-                </a>
-                <a href="/calendar" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">
-                  Calendar
-                </a>
-                <a href="/insights" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">
-                  Insights
-                </a>
-                <a href="/report" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">
-                  Monthly report
-                </a>
-                <a href="/year" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">
-                  Year overview
-                </a>
-              </div>
+              <a
+                href={`/?month=${prevMonthParam(monthDate)}`}
+                className="font-body text-ink/40 hover:text-ink/60 transition-colors mt-4 inline-block"
+                style={{ fontSize: "12px" }}
+              >
+                ← View last month
+              </a>
             )}
           </div>
 
-          {categorySpending.length > 0 && (
-            <div className="flex flex-col gap-2 px-6 pb-4">
-              {categorySpending.map(({ displayName, amount, categoryId }) => {
-                const allocated = categoryId
-                  ? allocatedByCategory.get(categoryId)
-                  : undefined;
-                const overBudget = allocated !== undefined && amount > allocated;
-                return (
-                  <div key={categoryId ?? "__none__"} className="flex items-center gap-3">
-                    <span className="font-body text-xs text-ink/50 w-28 text-right truncate">
-                      {displayName}
-                    </span>
-                    <div className="flex-1 h-1 bg-mist rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${overBudget ? "bg-clay/60" : "bg-ink/50"}`}
-                        style={{ width: `${(amount / maxCategorySpend) * 100}%` }}
-                      />
-                    </div>
-                    <div className="flex flex-col items-end w-20">
-                      <span className="font-body text-xs tabular-nums text-ink/50">
-                        {formatThb(amount)}
-                      </span>
-                      {allocated && (
-                        <span
-                          className={`font-body text-[10px] tabular-nums ${
-                            overBudget ? "text-clay/70" : "text-ink/30"
-                          }`}
-                        >
-                          of {formatThb(allocated)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Quick log */}
-          {viewing && categories && categories.length > 0 && (
-            <form
-              action={quickLog}
-              className="flex items-center gap-2 px-6 pb-4"
-            >
-              <select
-                name="category_id"
-                required
-                defaultValue=""
-                className="font-body flex-1 min-w-0 rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-sage"
-              >
-                <option value="" disabled>
-                  Category
-                </option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {[c.icon, c.name].filter(Boolean).join(" ")}
-                  </option>
-                ))}
-              </select>
-              <input
-                name="amount"
-                type="number"
-                inputMode="decimal"
-                min="0.01"
-                step="0.01"
-                required
-                placeholder="฿0"
-                className="font-display tabular-nums w-24 rounded-md border border-mist bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-sage"
-              />
-              <button
-                type="submit"
-                className="font-body rounded-md bg-ink px-3 py-2 text-sm text-paper transition-opacity hover:opacity-90 whitespace-nowrap"
-              >
-                Log
-              </button>
-            </form>
-          )}
-
+          {/* Missed recurrings */}
           {missedRecurrings.length > 0 && (
-            <div className="flex flex-col gap-2 px-6 pb-2">
-              <p className="font-body text-xs text-ink/40">
-                Not recorded yet this month
-              </p>
+            <div className="flex flex-col gap-2 px-6 pb-6">
+              <p className="font-body text-xs text-ink/40">Not recorded yet this month</p>
               <div className="flex flex-wrap gap-2">
                 {missedRecurrings.map((item) => (
                   <a
                     key={item.id}
                     href={`/transactions/new?from=${item.id}`}
-                    className="font-body text-xs rounded-full border border-mist px-3 py-1.5 text-ink/60 hover:bg-mist/40 transition-colors"
+                    className="font-body text-xs rounded-full border border-mist px-3 py-1.5 text-ink/60 hover:bg-mist/40 transition-colors inline-flex items-center gap-1"
                   >
-                    {[item.icon, item.categoryName]
-                      .filter(Boolean)
-                      .join(" ")}
+                    <CategoryIcon icon={item.icon} size={12} />
+                    {item.categoryName}
                     {item.note ? ` · ${item.note}` : ""}
                     {" · "}
                     {formatThb(Math.abs(item.amount))}
@@ -388,44 +301,77 @@ export default async function Home({
             </div>
           )}
 
-          <div className="flex flex-1 flex-col gap-6 px-6 pb-10">
-            {byDay.size === 0 && (
-              <p className="font-body text-center text-sm text-ink/60">
+          {/* Recent activity */}
+          <div className="flex flex-col gap-3 px-6 pb-6">
+            <div className="flex items-center justify-between">
+              <p className="font-body text-xs uppercase tracking-widest text-ink/40">
+                Recent
+              </p>
+              <a href="/transactions" className="font-body text-xs text-sage">
+                See all →
+              </a>
+            </div>
+
+            {recentFour.length === 0 ? (
+              <p className="font-body text-sm text-ink/60 text-center py-4">
                 Nothing recorded yet this month.
               </p>
-            )}
-            {[...byDay.entries()].map(([date, items]) => (
-              <div key={date} className="flex flex-col gap-2">
-                <p className="font-body text-sm text-ink/60">
-                  {dayHeading.format(new Date(date))}
-                </p>
-                <div className="flex flex-col divide-y divide-mist rounded-md border border-mist">
-                  {items?.map((t) => (
-                    <a
-                      key={t.id}
-                      href={`/transactions/${t.id}/edit`}
-                      className="flex items-center justify-between px-3 py-2 hover:bg-mist/30 transition-colors"
-                    >
+            ) : (
+              <div className="flex flex-col divide-y divide-mist rounded-2xl border border-mist bg-surface overflow-hidden">
+                {recentFour.map((t) => (
+                  <a
+                    key={t.id}
+                    href={`/transactions/${t.id}/edit`}
+                    className="flex items-center justify-between px-4 py-3.5 hover:bg-mist/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-sage-soft shrink-0">
+                        <CategoryIcon icon={t.categories?.icon} size={15} />
+                      </span>
                       <div className="flex flex-col">
                         <span className="font-body text-sm">
-                          {[t.categories?.icon, t.categories?.name ?? "Uncategorized"].filter(Boolean).join(" ")}
+                          {t.categories?.name ?? "Uncategorized"}
                         </span>
                         {t.note && (
-                          <span className="font-body text-xs text-ink/60">
-                            {t.note}
-                          </span>
+                          <span className="font-body text-xs text-ink/50">{t.note}</span>
                         )}
+                        <span className="font-body text-xs text-ink/40">
+                          {dayFmt.format(new Date(t.occurred_at + "T12:00:00"))}
+                        </span>
                       </div>
-                      <span className="font-body tabular-nums text-sm">
-                        {t.amount < 0 ? "-" : "+"}
-                        {formatThb(Math.abs(t.amount))}
-                      </span>
-                    </a>
-                  ))}
-                </div>
+                    </div>
+                    <span className={`font-body tabular-nums text-sm ${t.amount > 0 ? "text-sage" : ""}`}>
+                      {t.amount < 0 ? "−" : "+"}
+                      {formatThb(Math.abs(t.amount))}
+                    </span>
+                  </a>
+                ))}
               </div>
-            ))}
+            )}
           </div>
+
+          {/* This week digest card */}
+          {viewing && (
+            <div className="px-6 pb-10">
+              <a
+                href="/digest"
+                className="block rounded-2xl border border-mist bg-surface px-5 py-4 hover:bg-mist/20 transition-colors"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <p className="font-body text-xs uppercase tracking-widest text-ink/40">
+                    This week
+                  </p>
+                  <span className="font-body text-xs text-sage">View →</span>
+                </div>
+                <p className="font-display text-2xl tabular-nums">
+                  {formatThb(weekSpend)}
+                </p>
+                <p className="font-body text-xs text-ink/50 mt-1">
+                  spent so far this week
+                </p>
+              </a>
+            </div>
+          )}
         </>
       )}
     </main>

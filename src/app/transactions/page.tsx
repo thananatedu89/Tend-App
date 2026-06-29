@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatThb } from "@/lib/format";
+import { CategoryBadge, catOptionLabel } from "@/components/CategoryIcon";
 
 const dayFmt = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
@@ -105,7 +106,7 @@ export default async function TransactionsPage({
             <option value="">All categories</option>
             {categories?.map((c) => (
               <option key={c.id} value={c.id}>
-                {[c.icon, c.name].filter(Boolean).join(" ")}
+                {catOptionLabel(c.name, c.icon)}
               </option>
             ))}
           </select>
@@ -161,14 +162,15 @@ export default async function TransactionsPage({
                       <a
                         key={t.id}
                         href={`/transactions/${t.id}/edit`}
-                        className="flex items-center justify-between px-3 py-2 transition-colors hover:bg-mist/30"
+                        className="flex items-center gap-3 px-3 py-3 transition-colors hover:bg-mist/30"
                       >
-                        <div className="flex flex-col">
+                        <CategoryBadge icon={t.categories?.icon} />
+                        <div className="flex flex-col flex-1 min-w-0">
                           <span className="font-body text-sm">
-                            {[t.categories?.icon, t.categories?.name ?? "Uncategorized"].filter(Boolean).join(" ")}
+                            {t.categories?.name ?? "Uncategorized"}
                           </span>
                           {t.note && (
-                            <span className="font-body text-xs text-ink/60">
+                            <span className="font-body text-xs text-ink/50 truncate">
                               {t.note}
                             </span>
                           )}
@@ -178,7 +180,7 @@ export default async function TransactionsPage({
                             </span>
                           )}
                         </div>
-                        <span className="font-body tabular-nums text-sm">
+                        <span className={`font-body tabular-nums text-sm shrink-0 ${t.amount > 0 ? "text-sage" : ""}`}>
                           {t.amount < 0 ? "−" : "+"}
                           {formatThb(Math.abs(t.amount))}
                         </span>

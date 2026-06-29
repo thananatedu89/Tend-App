@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { startOfMonth } from "@/lib/month";
 import { formatThb } from "@/lib/format";
 import { setBudget, setBudgetLines, applyRollover, copyLastMonthBudget } from "./actions";
+import { CategoryIcon } from "@/components/CategoryIcon";
 
 const monthFmt = new Intl.DateTimeFormat("en-GB", {
   month: "long",
@@ -184,21 +185,25 @@ export default async function BudgetPage({
                     key={category.id}
                     className="flex items-center justify-between gap-3"
                   >
-                    <label
-                      htmlFor={`line_${category.id}`}
-                      className="flex flex-col"
-                    >
-                      <span className="font-body text-sm text-ink/70">
-                        {[category.icon, category.name].filter(Boolean).join(" ")}
-                      </span>
+                    <div className="flex flex-col">
+                      <label
+                        htmlFor={`line_${category.id}`}
+                        className="font-body text-sm text-ink/70 flex items-center gap-1.5"
+                      >
+                        <CategoryIcon icon={category.icon} />
+                        {category.name}
+                      </label>
                       {spent > 0 && (
-                        <span className="font-body text-xs text-ink/50">
+                        <a
+                          href={`/budget/${category.id}`}
+                          className="font-body text-xs text-ink/50 hover:text-sage transition-colors"
+                        >
                           {allocated
-                            ? `${formatThb(spent)} of ${formatThb(allocated)}`
-                            : `${formatThb(spent)} spent`}
-                        </span>
+                            ? `${formatThb(spent)} of ${formatThb(allocated)} →`
+                            : `${formatThb(spent)} spent →`}
+                        </a>
                       )}
-                    </label>
+                    </div>
                     <input
                       id={`line_${category.id}`}
                       name={`line_${category.id}`}

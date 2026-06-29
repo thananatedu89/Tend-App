@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { startOfMonth } from "@/lib/month";
 import { formatThb } from "@/lib/format";
+import { CategoryIcon } from "@/components/CategoryIcon";
 
 const shortMonth = new Intl.DateTimeFormat("en-GB", { month: "short" });
 const longMonth = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" });
@@ -231,8 +232,9 @@ export default async function InsightsPage() {
             <div className="flex flex-col gap-2">
               {categories.slice(0, 8).map((cat) => (
                 <div key={cat.name} className="flex items-center gap-3">
-                  <span className="font-body text-xs text-ink/50 w-28 text-right truncate">
-                    {[cat.icon, cat.name].filter(Boolean).join(" ")}
+                  <span className="font-body text-xs text-ink/50 w-28 flex items-center justify-end gap-1 truncate">
+                    <CategoryIcon icon={cat.icon} size={11} />
+                    <span className="truncate">{cat.name}</span>
                   </span>
                   <div className="flex-1 h-1 bg-mist rounded-full overflow-hidden">
                     <div
@@ -308,8 +310,9 @@ export default async function InsightsPage() {
                       key={cat.name}
                       className="flex items-center justify-between px-3 py-2.5"
                     >
-                      <span className="font-body text-sm">
-                        {[cat.icon, cat.name].filter(Boolean).join(" ")}
+                      <span className="font-body text-sm flex items-center gap-1.5">
+                        <CategoryIcon icon={cat.icon} />
+                        {cat.name}
                       </span>
                       <span className="font-body text-xs tabular-nums text-ink/50">
                         {formatThb(cat.prev)} → {formatThb(cat.curr)}

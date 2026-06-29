@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatThb } from "@/lib/format";
 import { redirect } from "next/navigation";
+import { CategoryIcon } from "@/components/CategoryIcon";
 
 const MONTH_LABELS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -193,8 +194,9 @@ export default async function YearPage({
               <div className="flex flex-col gap-2">
                 {topCats.map((cat) => (
                   <div key={cat.name} className="flex items-center gap-3">
-                    <span className="font-body text-xs text-ink/50 w-28 text-right truncate">
-                      {[cat.icon, cat.name].filter(Boolean).join(" ")}
+                    <span className="font-body text-xs text-ink/50 w-28 flex items-center justify-end gap-1 truncate">
+                      <CategoryIcon icon={cat.icon} size={11} />
+                      <span className="truncate">{cat.name}</span>
                     </span>
                     <div className="flex-1 h-1 bg-mist rounded-full overflow-hidden">
                       <div

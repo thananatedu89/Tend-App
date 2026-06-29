@@ -3,29 +3,49 @@
 :root {
   --color-ink: #16201c;
   --color-paper: #f4f1e9;
+  --color-surface: #fbf9f3;
   --color-sage: #647b6b;
+  --color-sage-soft: #e4eae4;
   --color-clay: #c9a88c;
   --color-mist: #dde3de;
+  --color-terracotta: #b5654d;
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
   --safe-left: env(safe-area-inset-left);
   --safe-right: env(safe-area-inset-right);
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-ink: #f4f1e9;
+    --color-paper: #16201c;
+    --color-surface: #232e29;
+    --color-sage: #8aa092;
+    --color-sage-soft: #2a3a31;
+    --color-clay: #c9a88c;
+    --color-mist: #324039;
+    --color-terracotta: #c97358;
+  }
+}
+
 @theme inline {
   --color-ink: var(--color-ink);
   --color-paper: var(--color-paper);
+  --color-surface: var(--color-surface);
   --color-sage: var(--color-sage);
+  --color-sage-soft: var(--color-sage-soft);
   --color-clay: var(--color-clay);
   --color-mist: var(--color-mist);
+  --color-terracotta: var(--color-terracotta);
   --font-display: var(--font-fraunces);
   --font-body: var(--font-inter);
+  --font-thai: var(--font-ibm-plex-sans-thai);
 }
 
 body {
   background: var(--color-paper);
   color: var(--color-ink);
-  font-family: var(--font-body), sans-serif;
+  font-family: var(--font-body), var(--font-thai), sans-serif;
   padding-top: var(--safe-top);
   padding-bottom: var(--safe-bottom);
   padding-left: var(--safe-left);

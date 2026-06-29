@@ -84,3 +84,33 @@ export async function setBudgetLines(formData: FormData) {
   revalidatePath("/budget");
   redirect("/budget");
 }
+
+export async function applyRollover(formData: FormData) {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) redirect("/login");
+
+  const rolloverAmount = Number(formData.get("rollover_amount"));
+  if (!Number.isFinite(rolloverAmount) || rolloverAmount <= 0) redirect("/budget");
+
+  const { data: budget } = await supabase
+    .from("budgets")
+    .select("id, total_amount")
+    .eq("month", startOfMonth())
+    .eq("user_id", userData.user.id)
+    .maybeSingle();
+
+  if (!budget) redirect("/budget?error=Set+a+budget+for+this+month+first");
+
+  const { error } = await supabase
+    .from("budgets")
+    .update({ total_amount: budget.total_amount + rolloverAmount })
+    .eq("id", budget.id)
+    .eq("user_id", userData.user.id);
+
+  if (error) redirect(`/budget?error=${encodeURIComponent(error.message)}`);
+
+  revalidatePath("/");
+  revalidatePath("/budget");
+  redirect("/budget");
+}

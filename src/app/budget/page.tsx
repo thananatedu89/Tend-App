@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { startOfMonth } from "@/lib/month";
 import { formatThb } from "@/lib/format";
-import { setBudget, setBudgetLines, applyRollover } from "./actions";
+import { setBudget, setBudgetLines, applyRollover, copyLastMonthBudget } from "./actions";
 
 const monthFmt = new Intl.DateTimeFormat("en-GB", {
   month: "long",
@@ -96,6 +96,18 @@ export default async function BudgetPage({
         <p className="font-body text-sm text-ink/60 mb-8">
           One number to plan around. You can change it any time.
         </p>
+
+        {/* Carry-forward: no budget yet but last month had one */}
+        {!budget && lastMonthBudget && (
+          <form action={copyLastMonthBudget} className="mb-6">
+            <button
+              type="submit"
+              className="font-body w-full text-left text-sm text-sage underline"
+            >
+              Copy {monthFmt.format(prevMonthDate)}&apos;s budget ({formatThb(lastMonthBudget.total_amount)})
+            </button>
+          </form>
+        )}
 
         <form action={setBudget} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">

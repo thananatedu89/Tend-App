@@ -65,6 +65,49 @@ export default async function InsightsPage() {
 
   const hasIncome = months.some((m) => m.income > 0);
 
+  // Day-of-week spending (Mon=0 … Sun=6)
+  const dowSpend = [0, 0, 0, 0, 0, 0, 0];
+  for (const t of txns ?? []) {
+    if (t.amount >= 0) continue;
+    const dow = (new Date(t.occurred_at + "T12:00:00").getDay() + 6) % 7;
+    dowSpend[dow] += Math.abs(t.amount);
+  }
+  const maxDow = Math.max(...dowSpend, 1);
+  const DOW_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const peakDow = dowSpend.indexOf(Math.max(...dowSpend));
+
+  // Per-month category spend for trend analysis
+  const catByMonth: Record<string, number[]> = {};
+  for (const t of txns ?? []) {
+    if (t.amount >= 0) continue;
+    const key = t.occurred_at.slice(0, 7) + "-01";
+    const monthIdx = months.findIndex((mo) => mo.key === key);
+    if (monthIdx === -1) continue;
+    const name =
+      (t.categories && !Array.isArray(t.categories)
+        ? t.categories.name
+        : null) ?? "Uncategorized";
+    if (!catByMonth[name]) catByMonth[name] = [0, 0, 0, 0, 0, 0];
+    catByMonth[name][monthIdx] = (catByMonth[name][monthIdx] ?? 0) + Math.abs(t.amount);
+  }
+
+  // Categories that rose 3 months in a row
+  const trending = Object.entries(catByMonth)
+    .filter(([_, amounts]) => {
+      const [a, b, c] = amounts.slice(-3);
+      return (a ?? 0) > 0 && (b ?? 0) > (a ?? 0) && (c ?? 0) > (b ?? 0);
+    })
+    .map(([name, amounts]) => ({
+      name,
+      prev: amounts[amounts.length - 2] ?? 0,
+      curr: amounts[amounts.length - 1] ?? 0,
+      icon: categoryMap[name]?.icon ?? null,
+    }))
+    .sort((a, b) => (b.curr - b.prev) - (a.curr - a.prev))
+    .slice(0, 3);
+
+  const hasDowData = dowSpend.some((v) => v > 0);
+
   const deltaText =
     prev.spent === 0
       ? null
@@ -210,6 +253,73 @@ export default async function InsightsPage() {
           <p className="font-body text-sm text-ink/60 text-center pt-4">
             No transactions in the last 6 months.
           </p>
+        )}
+
+        {/* Patterns */}
+        {(hasDowData || trending.length > 0) && (
+          <section className="flex flex-col gap-6">
+            <p className="font-body text-sm text-ink/60">Patterns</p>
+
+            {hasDowData && (
+              <div className="flex flex-col gap-3">
+                <p className="font-body text-xs text-ink/40">Spending by day</p>
+                <div className="flex items-end gap-1.5" style={{ height: "64px" }}>
+                  {dowSpend.map((spend, i) => (
+                    <div
+                      key={i}
+                      className="flex-1 flex flex-col items-center gap-1"
+                      style={{ height: "100%" }}
+                    >
+                      <div className="w-full flex-1 flex items-end">
+                        <div
+                          className={`w-full rounded-sm ${
+                            i === peakDow ? "bg-clay/70" : "bg-ink/15"
+                          }`}
+                          style={{
+                            height: `${Math.max(
+                              spend > 0 ? 4 : 0,
+                              (spend / maxDow) * 100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                      <span
+                        className={`font-body text-[9px] leading-none ${
+                          i === peakDow ? "text-clay" : "text-ink/30"
+                        }`}
+                      >
+                        {DOW_LABELS[i]!.slice(0, 2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="font-body text-xs text-ink/50">
+                  Most spending on {DOW_LABELS[peakDow]}s.
+                </p>
+              </div>
+            )}
+
+            {trending.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <p className="font-body text-xs text-ink/40">Rising 3 months in a row</p>
+                <div className="flex flex-col divide-y divide-mist rounded-md border border-mist">
+                  {trending.map((cat) => (
+                    <div
+                      key={cat.name}
+                      className="flex items-center justify-between px-3 py-2.5"
+                    >
+                      <span className="font-body text-sm">
+                        {[cat.icon, cat.name].filter(Boolean).join(" ")}
+                      </span>
+                      <span className="font-body text-xs tabular-nums text-ink/50">
+                        {formatThb(cat.prev)} → {formatThb(cat.curr)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
         )}
       </div>
     </main>

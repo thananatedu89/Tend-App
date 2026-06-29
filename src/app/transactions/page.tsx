@@ -32,7 +32,18 @@ export default async function TransactionsPage({
     .limit(300);
 
   if (q?.trim()) {
-    query = query.ilike("note", `%${q.trim()}%`);
+    const term = q.trim();
+    const matchingCategoryIds = (categories ?? [])
+      .filter((c) => c.name.toLowerCase().includes(term.toLowerCase()))
+      .map((c) => c.id);
+
+    if (matchingCategoryIds.length > 0) {
+      query = query.or(
+        `note.ilike.%${term}%,category_id.in.(${matchingCategoryIds.join(",")})`,
+      );
+    } else {
+      query = query.ilike("note", `%${term}%`);
+    }
   }
 
   if (category) {

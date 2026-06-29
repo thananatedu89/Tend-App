@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { signOut } from "./login/actions";
 import { formatThb } from "@/lib/format";
 import {
   startOfMonth,
@@ -43,7 +42,7 @@ export default async function Home({
 
   const { data: transactions } = await supabase
     .from("transactions")
-    .select("id, amount, note, occurred_at, categories(name, icon)")
+    .select("id, amount, note, occurred_at, category_id, categories(name, icon)")
     .gte("occurred_at", monthStart)
     .lt("occurred_at", nextMonthParam(monthDate))
     .order("occurred_at", { ascending: false })
@@ -83,20 +82,75 @@ export default async function Home({
     byDay.set(key, [...(byDay.get(key) ?? []), t]);
   }
 
+  // Missed recurrings: expenses that appeared 2+ times in prior 90 days
+  // but haven't been recorded yet this month
+  interface MissedItem {
+    id: string;
+    amount: number;
+    note: string | null;
+    categoryId: string | null;
+    categoryName: string;
+    icon: string | null;
+  }
+  let missedRecurrings: MissedItem[] = [];
+  const dayOfMonth = new Date().getDate();
+
+  if (viewing && dayOfMonth >= 5 && !isNewUser) {
+    const since90 = new Date();
+    since90.setDate(since90.getDate() - 90);
+    const since90Str = since90.toISOString().slice(0, 10);
+
+    const { data: hist } = await supabase
+      .from("transactions")
+      .select("id, amount, note, category_id, categories(name, icon), occurred_at")
+      .lt("amount", 0)
+      .gte("occurred_at", since90Str)
+      .lt("occurred_at", monthStart);
+
+    const groups = new Map<string, MissedItem & { count: number }>();
+    for (const t of hist ?? []) {
+      const key = `${t.category_id ?? ""}|${t.note ?? ""}|${t.amount}`;
+      const existing = groups.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        const catObj =
+          t.categories && !Array.isArray(t.categories) ? t.categories : null;
+        groups.set(key, {
+          id: t.id,
+          count: 1,
+          amount: t.amount,
+          note: t.note,
+          categoryId: t.category_id,
+          categoryName: catObj?.name ?? "Uncategorized",
+          icon: catObj?.icon ?? null,
+        });
+      }
+    }
+
+    const thisMonthKeys = new Set(
+      (transactions ?? [])
+        .filter((t) => t.amount < 0)
+        .map((t) => `${t.category_id ?? ""}|${t.note ?? ""}|${t.amount}`),
+    );
+
+    missedRecurrings = [...groups.values()]
+      .filter((g) => {
+        const k = `${g.categoryId ?? ""}|${g.note ?? ""}|${g.amount}`;
+        return g.count >= 2 && !thisMonthKeys.has(k);
+      })
+      .slice(0, 3);
+  }
+
   return (
     <main className="flex flex-1 flex-col">
       <header className="flex items-center justify-between px-6 py-4">
         <span className="font-body text-sm text-ink/60">
           {userData.user?.email}
         </span>
-        <form action={signOut}>
-          <button
-            type="submit"
-            className="font-body text-sm text-sage underline"
-          >
-            Sign out
-          </button>
-        </form>
+        <a href="/settings" className="font-body text-sm text-sage underline">
+          Settings
+        </a>
       </header>
 
       {isNewUser ? (
@@ -199,11 +253,14 @@ export default async function Home({
                 <a href="/digest" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">
                   This week
                 </a>
+                <a href="/calendar" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">
+                  Calendar
+                </a>
                 <a href="/insights" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">
                   Insights
                 </a>
-                <a href="/api/export" className="font-body text-xs text-ink/30 hover:text-ink/50 transition-colors">
-                  Export data
+                <a href="/report" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">
+                  Monthly report
                 </a>
               </div>
             )}
@@ -227,6 +284,30 @@ export default async function Home({
                   </span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {missedRecurrings.length > 0 && (
+            <div className="flex flex-col gap-2 px-6 pb-2">
+              <p className="font-body text-xs text-ink/40">
+                Not recorded yet this month
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {missedRecurrings.map((item) => (
+                  <a
+                    key={item.id}
+                    href={`/transactions/new?from=${item.id}`}
+                    className="font-body text-xs rounded-full border border-mist px-3 py-1.5 text-ink/60 hover:bg-mist/40 transition-colors"
+                  >
+                    {[item.icon, item.categoryName]
+                      .filter(Boolean)
+                      .join(" ")}
+                    {item.note ? ` · ${item.note}` : ""}
+                    {" · "}
+                    {formatThb(Math.abs(item.amount))}
+                  </a>
+                ))}
+              </div>
             </div>
           )}
 

@@ -85,6 +85,58 @@ export async function setBudgetLines(formData: FormData) {
   redirect("/budget");
 }
 
+export async function copyLastMonthBudget(_formData: FormData) {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) redirect("/login");
+
+  const now = new Date();
+  const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonthStart = startOfMonth(prevMonthDate);
+  const thisMonthStart = startOfMonth();
+
+  const { data: prevBudget } = await supabase
+    .from("budgets")
+    .select("id, total_amount")
+    .eq("month", prevMonthStart)
+    .eq("user_id", userData.user.id)
+    .maybeSingle();
+
+  if (!prevBudget) redirect("/budget?error=No+budget+found+for+last+month");
+
+  const { data: newBudget, error: budgetError } = await supabase
+    .from("budgets")
+    .upsert(
+      { user_id: userData.user.id, month: thisMonthStart, total_amount: prevBudget.total_amount },
+      { onConflict: "user_id,month" },
+    )
+    .select("id")
+    .single();
+
+  if (budgetError || !newBudget)
+    redirect(`/budget?error=${encodeURIComponent(budgetError?.message ?? "Failed to create budget")}`);
+
+  const { data: prevLines } = await supabase
+    .from("budget_lines")
+    .select("category_id, allocated_amount")
+    .eq("budget_id", prevBudget.id);
+
+  if (prevLines && prevLines.length > 0) {
+    await supabase.from("budget_lines").upsert(
+      prevLines.map((line) => ({
+        budget_id: newBudget.id,
+        category_id: line.category_id,
+        allocated_amount: line.allocated_amount,
+      })),
+      { onConflict: "budget_id,category_id" },
+    );
+  }
+
+  revalidatePath("/");
+  revalidatePath("/budget");
+  redirect("/budget");
+}
+
 export async function applyRollover(formData: FormData) {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();

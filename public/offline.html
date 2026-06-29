@@ -2,28 +2,46 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Tend</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400&family=Inter:wght@400&display=swap" rel="stylesheet" />
     <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       html, body {
-        margin: 0;
         height: 100%;
         background: #f4f1e9;
         color: #16201c;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
+      body {
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        font-family: ui-serif, Georgia, serif;
         text-align: center;
-        padding: 24px;
+        padding: 32px;
+        gap: 12px;
+      }
+      h1 {
+        font-family: "Fraunces", ui-serif, serif;
+        font-weight: 400;
+        font-size: 2rem;
+        letter-spacing: -0.01em;
       }
       p {
-        max-width: 320px;
-        font-size: 1.1rem;
+        font-family: "Inter", ui-sans-serif, sans-serif;
+        font-weight: 400;
+        font-size: 0.9rem;
+        color: rgba(22, 32, 28, 0.6);
+        max-width: 280px;
+        line-height: 1.6;
       }
     </style>
   </head>
   <body>
-    <p>You're offline. Tend needs a connection to show your real numbers — try again once you're back online.</p>
+    <h1>You&rsquo;re offline.</h1>
+    <p>Tend needs a connection to show your real numbers. Try again once you&rsquo;re back online.</p>
   </body>
 </html>

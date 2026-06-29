@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
 import { RegisterServiceWorker } from "./register-sw";
+import { BottomNav } from "@/components/BottomNav";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -48,6 +49,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-paper text-ink">
         <RegisterServiceWorker />
         {children}
+        {/* spacer so fixed bottom nav never covers content */}
+        <div className="h-16 shrink-0" aria-hidden="true" />
+        <BottomNav />
       </body>
     </html>
   );

@@ -257,6 +257,70 @@ export default async function InsightsPage() {
           </p>
         )}
 
+        {/* Category month-over-month */}
+        {Object.keys(catByMonth).length > 0 && (() => {
+          const last3 = months.slice(-3);
+          const topCats = Object.entries(catByMonth)
+            .map(([name, amounts]) => ({
+              name,
+              icon: categoryMap[name]?.icon ?? null,
+              months: amounts.slice(-3),
+            }))
+            .filter((c) => c.months.some((v) => v > 0))
+            .sort((a, b) => (b.months[2] ?? 0) - (a.months[2] ?? 0))
+            .slice(0, 6);
+
+          if (topCats.length === 0) return null;
+
+          return (
+            <section className="flex flex-col gap-3">
+              <p className="font-body text-sm text-ink/60">Category trends</p>
+              <div className="flex flex-col gap-3">
+                {topCats.map((cat) => {
+                  const maxVal = Math.max(...cat.months, 1);
+                  const prev2 = cat.months[1] ?? 0;
+                  const curr2 = cat.months[2] ?? 0;
+                  const arrow = curr2 > prev2 * 1.1 ? "↑" : curr2 < prev2 * 0.9 ? "↓" : "→";
+                  const arrowColor =
+                    arrow === "↑" ? "var(--color-terracotta)" :
+                    arrow === "↓" ? "var(--color-sage)" :
+                    "var(--color-ink, #1a1a1a)";
+                  return (
+                    <div key={cat.name} className="rounded-2xl border border-mist bg-surface px-4 py-3.5 flex items-center gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <CategoryIcon icon={cat.icon} size={13} />
+                          <span className="font-body text-sm truncate">{cat.name}</span>
+                          <span className="font-body text-xs ml-1" style={{ color: arrowColor }}>{arrow}</span>
+                        </div>
+                        <div className="flex items-end gap-1.5" style={{ height: "32px" }}>
+                          {cat.months.map((val, i) => (
+                            <div key={i} className="flex-1 flex flex-col items-center gap-0.5" style={{ height: "100%" }}>
+                              <div className="w-full flex-1 flex items-end">
+                                <div
+                                  className={`w-full rounded-sm ${i === 2 ? "bg-ink/50" : "bg-ink/15"}`}
+                                  style={{ height: `${Math.max(val > 0 ? 6 : 0, (val / maxVal) * 100)}%` }}
+                                />
+                              </div>
+                              <span className="font-body text-[9px] text-ink/30 leading-none">{last3[i]!.short}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-body text-sm tabular-nums">{formatThb(curr2)}</p>
+                        {prev2 > 0 && (
+                          <p className="font-body text-[11px] text-ink/40 tabular-nums">{formatThb(prev2)} prior</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })()}
+
         {/* Patterns */}
         {(hasDowData || trending.length > 0) && (
           <section className="flex flex-col gap-6">

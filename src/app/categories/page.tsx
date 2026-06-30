@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createCategory } from "./actions";
-import { CategoryIcon } from "@/components/CategoryIcon";
+import { CategoryIcon, colorStyles } from "@/components/CategoryIcon";
 
 export default async function CategoriesPage({
   searchParams,
@@ -12,7 +12,7 @@ export default async function CategoriesPage({
 
   const { data: categories } = await supabase
     .from("categories")
-    .select("id, name, icon")
+    .select("id, name, icon, color")
     .order("name");
 
   return (
@@ -31,8 +31,10 @@ export default async function CategoriesPage({
                 href={`/categories/${cat.id}/edit`}
                 className="flex items-center justify-between px-3 py-2.5 hover:bg-mist/30 transition-colors"
               >
-                <span className="font-body text-sm flex items-center gap-1.5">
-                  <CategoryIcon icon={cat.icon} />
+                <span className="font-body text-sm flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full shrink-0" style={{ background: colorStyles(cat.color).bg, color: colorStyles(cat.color).fg }}>
+                    <CategoryIcon icon={cat.icon} size={12} />
+                  </span>
                   {cat.name}
                 </span>
                 <span className="font-body text-xs text-ink/40">Edit</span>

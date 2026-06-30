@@ -179,29 +179,46 @@ export default async function DigestPage({
           )}
         </div>
 
-        {/* Category rows */}
+        {/* Category chart */}
         {categoryRows.length > 0 ? (
           <div>
-            {categoryRows.map(({ name, icon, amount }, i) => (
-              <div
-                key={name}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: "12px 0",
-                  borderBottom: i < categoryRows.length - 1 ? "1px solid var(--color-mist)" : "none",
-                  fontSize: "14px",
-                }}
-              >
-                <span style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--color-ink)" }}>
-                  <CategoryIcon icon={icon} size={14} />
-                  {name}
-                </span>
-                <span className="tabular-nums" style={{ color: "var(--color-ink)" }}>
-                  {formatThb(amount)}
-                </span>
-              </div>
-            ))}
+            {categoryRows.map(({ name, icon, amount }, i) => {
+              const barPct = totalSpent > 0 ? (amount / totalSpent) * 100 : 0;
+              return (
+                <div
+                  key={name}
+                  style={{
+                    padding: "12px 0",
+                    borderBottom: i < categoryRows.length - 1 ? "1px solid var(--color-mist)" : "none",
+                  }}
+                >
+                  {/* Label row */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "7px", fontSize: "14px" }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--color-ink)" }}>
+                      <CategoryIcon icon={icon} size={14} />
+                      {name}
+                    </span>
+                    <span className="tabular-nums" style={{ color: "var(--color-ink)" }}>
+                      {formatThb(amount)}
+                    </span>
+                  </div>
+                  {/* Bar */}
+                  <div style={{ height: "4px", borderRadius: "999px", background: "var(--color-mist)", overflow: "hidden" }}>
+                    <div
+                      style={{
+                        width: `${barPct}%`,
+                        height: "100%",
+                        background: "var(--color-sage)",
+                        borderRadius: "999px",
+                      }}
+                    />
+                  </div>
+                  <p style={{ fontSize: "11px", color: "var(--color-ink)", opacity: 0.35, marginTop: "4px" }}>
+                    {Math.round(barPct)}%
+                  </p>
+                </div>
+              );
+            })}
             {totalIncome > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderTop: "1px solid var(--color-mist)", fontSize: "14px", marginTop: "4px" }}>
                 <span style={{ color: "var(--color-sage)" }}>Income</span>

@@ -56,6 +56,31 @@ export default async function BudgetPage({
     );
   }
 
+  // 3-month category averages for suggestions
+  const _now = new Date();
+  const threeMonthsAgo = new Date(_now.getFullYear(), _now.getMonth() - 3, 1);
+  const threeMonthsAgoStr = `${threeMonthsAgo.getFullYear()}-${String(threeMonthsAgo.getMonth() + 1).padStart(2, "0")}-01`;
+  const { data: hist3m } = await supabase
+    .from("transactions")
+    .select("category_id, amount, occurred_at")
+    .lt("amount", 0)
+    .gte("occurred_at", threeMonthsAgoStr)
+    .lt("occurred_at", thisMonthStart);
+
+  const catHistTotal = new Map<string, number>();
+  const catHistMonths = new Map<string, Set<string>>();
+  for (const t of hist3m ?? []) {
+    if (!t.category_id) continue;
+    catHistTotal.set(t.category_id, (catHistTotal.get(t.category_id) ?? 0) + Math.abs(t.amount));
+    if (!catHistMonths.has(t.category_id)) catHistMonths.set(t.category_id, new Set());
+    catHistMonths.get(t.category_id)!.add(t.occurred_at.slice(0, 7));
+  }
+  const catAvg = new Map<string, number>();
+  for (const [catId, total] of catHistTotal) {
+    const months = catHistMonths.get(catId)?.size ?? 1;
+    catAvg.set(catId, Math.round(total / months));
+  }
+
   // Past 6 months — budget history
   const { data: pastBudgets } = await supabase
     .from("budgets")
@@ -161,12 +186,14 @@ export default async function BudgetPage({
           </form>
         )}
 
-        <a
-          href="/categories"
-          className="font-body mt-6 block text-center text-sm text-sage underline"
-        >
-          Manage categories
-        </a>
+        <div className="flex justify-center gap-6 mt-6">
+          <a href="/goals" className="font-body text-sm text-sage underline">
+            Savings goals
+          </a>
+          <a href="/categories" className="font-body text-sm text-sage underline">
+            Categories
+          </a>
+        </div>
 
         {budget && categories && categories.length > 0 && (
           <div className="mt-10">
@@ -196,24 +223,39 @@ export default async function BudgetPage({
                       {spent > 0 && (
                         <a
                           href={`/budget/${category.id}`}
-                          className="font-body text-xs text-ink/50 hover:text-sage transition-colors"
+                          className="font-body text-xs hover:opacity-70 transition-opacity"
+                          style={{
+                            color: allocated && spent > allocated
+                              ? "var(--color-terracotta)"
+                              : "var(--color-ink)",
+                            opacity: allocated && spent > allocated ? 1 : 0.5,
+                          }}
                         >
-                          {allocated
+                          {allocated && spent > allocated
+                            ? `${formatThb(spent - allocated)} over →`
+                            : allocated
                             ? `${formatThb(spent)} of ${formatThb(allocated)} →`
                             : `${formatThb(spent)} spent →`}
                         </a>
                       )}
                     </div>
-                    <input
-                      id={`line_${category.id}`}
-                      name={`line_${category.id}`}
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="0.01"
-                      defaultValue={allocatedByCategory.get(category.id) ?? ""}
-                      className="font-display tabular-nums w-28 rounded-md border border-mist bg-paper px-3 py-2 text-right text-ink outline-none focus:border-sage"
-                    />
+                    <div className="flex flex-col items-end gap-0.5">
+                      {catAvg.has(category.id) && (
+                        <span className="font-body text-[10px] text-ink/35 tabular-nums">
+                          avg {formatThb(catAvg.get(category.id)!)}/mo
+                        </span>
+                      )}
+                      <input
+                        id={`line_${category.id}`}
+                        name={`line_${category.id}`}
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        step="0.01"
+                        defaultValue={allocatedByCategory.get(category.id) ?? ""}
+                        className="font-display tabular-nums w-28 rounded-md border border-mist bg-paper px-3 py-2 text-right text-ink outline-none focus:border-sage"
+                      />
+                    </div>
                   </div>
                 );
               })}

@@ -3,6 +3,7 @@ import { createTransaction } from "../actions";
 import { formatThb } from "@/lib/format";
 import { NoteInput } from "@/components/NoteInput";
 import { catOptionLabel } from "@/components/CategoryIcon";
+import { ReceiptUpload } from "@/components/ReceiptUpload";
 
 export default async function NewTransactionPage({
   searchParams,
@@ -12,7 +13,10 @@ export default async function NewTransactionPage({
   const { error, from: fromId } = await searchParams;
   const supabase = await createClient();
 
-  const [{ data: categories }, { data: accounts }, { data: recentNotes }] =
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData.user?.id;
+
+  const [{ data: categories }, { data: accounts }, { data: recentNotes }, { data: walletMemberships }] =
     await Promise.all([
       supabase.from("categories").select("id, name, icon").order("name"),
       supabase.from("accounts").select("id, name").order("name"),
@@ -22,7 +26,15 @@ export default async function NewTransactionPage({
         .not("note", "is", null)
         .order("occurred_at", { ascending: false })
         .limit(150),
+      userId
+        ? supabase.from("wallet_members").select("wallet_id").eq("user_id", userId)
+        : { data: [] },
     ]);
+
+  const walletIds = (walletMemberships ?? []).map((m) => m.wallet_id);
+  const { data: wallets } = walletIds.length
+    ? await supabase.from("wallets").select("id, name").in("id", walletIds).order("name")
+    : { data: [] };
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -163,7 +175,7 @@ export default async function NewTransactionPage({
                   defaultChecked
                   className="peer sr-only"
                 />
-                <span className="block cursor-pointer rounded-md border border-mist px-3 py-2 text-center font-body text-sm peer-checked:border-ink peer-checked:bg-ink peer-checked:text-paper">
+                <span className="block cursor-pointer rounded-xl border border-mist px-3 py-2 text-center font-body text-sm peer-checked:border-ink peer-checked:bg-ink peer-checked:text-paper">
                   Expense
                 </span>
               </label>
@@ -174,7 +186,7 @@ export default async function NewTransactionPage({
                   value="income"
                   className="peer sr-only"
                 />
-                <span className="block cursor-pointer rounded-md border border-mist px-3 py-2 text-center font-body text-sm peer-checked:border-ink peer-checked:bg-ink peer-checked:text-paper">
+                <span className="block cursor-pointer rounded-xl border border-mist px-3 py-2 text-center font-body text-sm peer-checked:border-ink peer-checked:bg-ink peer-checked:text-paper">
                   Income
                 </span>
               </label>
@@ -194,7 +206,7 @@ export default async function NewTransactionPage({
                 required
                 autoFocus
                 defaultValue={prefill?.amount ?? undefined}
-                className="font-display tabular-nums text-2xl rounded-md border border-mist bg-paper px-3 py-2 text-ink outline-none focus:border-sage"
+                className="font-display tabular-nums text-2xl rounded-xl border border-mist bg-paper px-3 py-2 text-ink outline-none focus:border-sage"
               />
             </div>
 
@@ -210,7 +222,7 @@ export default async function NewTransactionPage({
                 name="category_id"
                 required
                 defaultValue={prefill?.categoryId ?? ""}
-                className="font-body rounded-md border border-mist bg-paper px-3 py-2 text-ink outline-none focus:border-sage"
+                className="font-body rounded-xl border border-mist bg-paper px-3 py-2 text-ink outline-none focus:border-sage"
               >
                 {!prefill && <option value="" disabled>Select a category</option>}
                 {categories?.map((c) => (
@@ -233,7 +245,7 @@ export default async function NewTransactionPage({
                   id="account_id"
                   name="account_id"
                   defaultValue={prefill?.accountId ?? ""}
-                  className="font-body rounded-md border border-mist bg-paper px-3 py-2 text-ink outline-none focus:border-sage"
+                  className="font-body rounded-xl border border-mist bg-paper px-3 py-2 text-ink outline-none focus:border-sage"
                 >
                   <option value="">No account</option>
                   {accounts.map((a) => (
@@ -258,7 +270,7 @@ export default async function NewTransactionPage({
                 type="date"
                 defaultValue={today}
                 required
-                className="font-body rounded-md border border-mist bg-paper px-3 py-2 text-ink outline-none focus:border-sage"
+                className="font-body rounded-xl border border-mist bg-paper px-3 py-2 text-ink outline-none focus:border-sage"
               />
             </div>
 
@@ -271,6 +283,36 @@ export default async function NewTransactionPage({
                 suggestions={noteSuggestions}
               />
             </div>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                name="is_recurring"
+                value="1"
+                className="w-4 h-4 rounded border-mist accent-sage"
+              />
+              <span className="font-body text-sm text-ink/70">Recurring (monthly)</span>
+            </label>
+
+            {wallets && wallets.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="wallet_id" className="font-body text-sm text-ink/70">
+                  Shared wallet (optional)
+                </label>
+                <select
+                  id="wallet_id"
+                  name="wallet_id"
+                  className="font-body rounded-xl border border-mist bg-paper px-3 py-2 text-ink outline-none focus:border-sage"
+                >
+                  <option value="">Personal</option>
+                  {wallets.map((w) => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <ReceiptUpload />
 
             {error && <p className="font-body text-sm text-ink/70">{error}</p>}
 

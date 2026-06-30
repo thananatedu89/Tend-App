@@ -18,6 +18,24 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+self.addEventListener("push", (event) => {
+  const data = event.data?.json() ?? {};
+  const title = data.title ?? "Tend";
+  const options = {
+    body: data.body ?? "",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    data: { url: data.url ?? "/" },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url ?? "/";
+  event.waitUntil(clients.openWindow(url));
+});
+
 // Money data must always come from the network — only the offline fallback
 // is cached, and only for full-page navigations that fail outright.
 self.addEventListener("fetch", (event) => {

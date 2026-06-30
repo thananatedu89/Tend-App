@@ -41,24 +41,218 @@ export type Database = {
     Tables: {
       accounts: {
         Row: {
+          balance: number
+          balance_updated_at: string | null
           created_at: string
           id: string
           name: string
           user_id: string
         }
         Insert: {
+          balance?: number
+          balance_updated_at?: string | null
           created_at?: string
           id?: string
           name: string
           user_id: string
         }
         Update: {
+          balance?: number
+          balance_updated_at?: string | null
           created_at?: string
           id?: string
           name?: string
           user_id?: string
         }
         Relationships: []
+      }
+      wallet_settlements: {
+        Row: {
+          id: string
+          wallet_id: string
+          settled_by: string
+          settled_at: string
+        }
+        Insert: {
+          id?: string
+          wallet_id: string
+          settled_by: string
+          settled_at?: string
+        }
+        Update: {
+          id?: string
+          wallet_id?: string
+          settled_by?: string
+          settled_at?: string
+        }
+        Relationships: []
+      }
+      wallets: {
+        Row: {
+          id: string
+          name: string
+          owner_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          owner_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          owner_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      wallet_members: {
+        Row: {
+          id: string
+          wallet_id: string
+          user_id: string
+          role: string
+          joined_at: string
+        }
+        Insert: {
+          id?: string
+          wallet_id: string
+          user_id: string
+          role?: string
+          joined_at?: string
+        }
+        Update: {
+          id?: string
+          wallet_id?: string
+          user_id?: string
+          role?: string
+          joined_at?: string
+        }
+        Relationships: []
+      }
+      wallet_invites: {
+        Row: {
+          id: string
+          wallet_id: string
+          invited_by: string
+          token: string
+          accepted_at: string | null
+          expires_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          wallet_id: string
+          invited_by: string
+          token?: string
+          accepted_at?: string | null
+          expires_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          wallet_id?: string
+          invited_by?: string
+          token?: string
+          accepted_at?: string | null
+          expires_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          endpoint: string
+          p256dh: string
+          auth: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          endpoint: string
+          p256dh: string
+          auth: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          endpoint?: string
+          p256dh?: string
+          auth?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      goals: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          saved_amount: number
+          target_amount: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          saved_amount?: number
+          target_amount: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          saved_amount?: number
+          target_amount?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      goal_deposits: {
+        Row: {
+          id: string
+          goal_id: string
+          user_id: string
+          amount: number
+          note: string | null
+          occurred_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          goal_id: string
+          user_id: string
+          amount: number
+          note?: string | null
+          occurred_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          goal_id?: string
+          user_id?: string
+          amount?: number
+          note?: string | null
+          occurred_at?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_deposits_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       budget_lines: {
         Row: {
@@ -122,6 +316,7 @@ export type Database = {
       }
       categories: {
         Row: {
+          color: string | null
           created_at: string
           icon: string | null
           id: string
@@ -130,6 +325,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          color?: string | null
           created_at?: string
           icon?: string | null
           id?: string
@@ -138,6 +334,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          color?: string | null
           created_at?: string
           icon?: string | null
           id?: string
@@ -155,8 +352,11 @@ export type Database = {
           created_at: string
           id: string
           note: string | null
+          is_recurring: boolean
           occurred_at: string
+          receipt_url: string | null
           user_id: string
+          wallet_id: string | null
         }
         Insert: {
           account_id?: string | null
@@ -164,9 +364,12 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           id?: string
+          is_recurring?: boolean
           note?: string | null
           occurred_at?: string
+          receipt_url?: string | null
           user_id: string
+          wallet_id?: string | null
         }
         Update: {
           account_id?: string | null
@@ -174,9 +377,12 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           id?: string
+          is_recurring?: boolean
           note?: string | null
           occurred_at?: string
+          receipt_url?: string | null
           user_id?: string
+          wallet_id?: string | null
         }
         Relationships: [
           {

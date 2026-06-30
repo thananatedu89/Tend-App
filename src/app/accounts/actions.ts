@@ -12,15 +12,23 @@ export async function createAccount(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim().slice(0, 100);
   if (!name) redirect("/accounts?error=Enter+an+account+name");
 
+  const balanceRaw = parseFloat(formData.get("balance") as string);
+  const balance = isNaN(balanceRaw) ? 0 : balanceRaw;
+
   const { error } = await supabase
     .from("accounts")
-    .insert({ user_id: userData.user.id, name });
+    .insert({
+      user_id: userData.user.id,
+      name,
+      balance,
+      balance_updated_at: new Date().toISOString(),
+    });
 
   if (error) redirect(`/accounts?error=${encodeURIComponent(error.message)}`);
 
   revalidatePath("/accounts");
   revalidatePath("/transactions");
-  redirect("/accounts");
+  redirect("/accounts?toast=Account+added");
 }
 
 export async function updateAccount(formData: FormData) {
@@ -30,13 +38,15 @@ export async function updateAccount(formData: FormData) {
 
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim().slice(0, 100);
+  const balanceRaw = parseFloat(formData.get("balance") as string);
+  const balance = isNaN(balanceRaw) ? 0 : balanceRaw;
 
   if (!id) redirect("/accounts");
   if (!name) redirect(`/accounts/${id}/edit?error=Enter+an+account+name`);
 
   const { error } = await supabase
     .from("accounts")
-    .update({ name })
+    .update({ name, balance, balance_updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("user_id", userData.user.id);
 
@@ -44,7 +54,7 @@ export async function updateAccount(formData: FormData) {
 
   revalidatePath("/accounts");
   revalidatePath("/transactions");
-  redirect("/accounts");
+  redirect("/accounts?toast=Account+saved");
 }
 
 export async function deleteAccount(formData: FormData) {
@@ -65,5 +75,5 @@ export async function deleteAccount(formData: FormData) {
 
   revalidatePath("/accounts");
   revalidatePath("/transactions");
-  redirect("/accounts");
+  redirect("/accounts?toast=Account+removed");
 }

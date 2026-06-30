@@ -4,6 +4,9 @@ import "./globals.css";
 import { RegisterServiceWorker } from "./register-sw";
 import { BottomNav } from "@/components/BottomNav";
 import { OnboardingGate } from "@/components/OnboardingGate";
+import { PageTransition } from "@/components/PageTransition";
+import { Toast } from "@/components/Toast";
+import { createClient } from "@/lib/supabase/server";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -43,11 +46,43 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let hasPlanAlert = false;
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData.user) {
+      const now = new Date();
+      const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const { data: budget } = await supabase
+        .from("budgets")
+        .select("id, budget_lines(category_id, allocated_amount)")
+        .eq("month", monthStart)
+        .maybeSingle();
+      if (budget?.budget_lines?.length) {
+        const { data: txns } = await supabase
+          .from("transactions")
+          .select("category_id, amount")
+          .gte("occurred_at", monthStart)
+          .lt("amount", 0);
+        const spent = new Map<string, number>();
+        for (const t of txns ?? []) {
+          if (!t.category_id) continue;
+          spent.set(t.category_id, (spent.get(t.category_id) ?? 0) + Math.abs(t.amount));
+        }
+        hasPlanAlert = budget.budget_lines.some(
+          (line) => (spent.get(line.category_id) ?? 0) > line.allocated_amount,
+        );
+      }
+    }
+  } catch {
+    // non-critical — badge silently absent on error
+  }
+
   return (
     <html
       lang="en"
@@ -56,14 +91,16 @@ export default function RootLayout({
       <head>
         {/* Read theme from localStorage before first paint to avoid flash */}
         <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('tend_theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}` }} />
+        <script dangerouslySetInnerHTML={{ __html: `document.addEventListener('click',function(e){var b=e.target.closest('button[type="submit"],a[href]');if(b&&navigator.vibrate)navigator.vibrate(6);});` }} />
       </head>
       <body className="min-h-full flex flex-col bg-paper text-ink">
         <RegisterServiceWorker />
         <OnboardingGate />
-        {children}
+        <PageTransition>{children}</PageTransition>
         {/* spacer so fixed bottom nav never covers content */}
         <div className="h-16 shrink-0" aria-hidden="true" />
-        <BottomNav />
+        <BottomNav hasPlanAlert={hasPlanAlert} />
+        <Toast />
       </body>
     </html>
   );

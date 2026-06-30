@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { updateCategory, deleteCategory } from "../../actions";
+import { COLOR_PALETTE } from "@/components/CategoryIcon";
 
 export default async function EditCategoryPage({
   params,
@@ -18,7 +19,7 @@ export default async function EditCategoryPage({
 
   const { data: category } = await supabase
     .from("categories")
-    .select("id, name, icon")
+    .select("id, name, icon, color")
     .eq("id", id)
     .eq("user_id", userData.user.id)
     .maybeSingle();
@@ -30,7 +31,7 @@ export default async function EditCategoryPage({
       <div className="w-full max-w-sm">
         <h1 className="font-display text-3xl mb-1">Edit category</h1>
         <p className="font-body text-sm text-ink/60 mb-8">
-          Rename it, add an icon, or remove it entirely.
+          Rename it, pick a color, add an icon, or remove it.
         </p>
 
         <form action={updateCategory} className="flex flex-col gap-4">
@@ -38,9 +39,7 @@ export default async function EditCategoryPage({
 
           <div className="flex gap-2">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="icon" className="font-body text-sm text-ink/70">
-                Icon
-              </label>
+              <label htmlFor="icon" className="font-body text-sm text-ink/70">Icon</label>
               <input
                 id="icon"
                 name="icon"
@@ -51,11 +50,8 @@ export default async function EditCategoryPage({
                 className="font-body w-14 rounded-md border border-mist bg-paper px-2 py-2 text-center text-ink outline-none focus:border-sage placeholder:text-ink/20"
               />
             </div>
-
             <div className="flex-1 flex flex-col gap-1.5">
-              <label htmlFor="name" className="font-body text-sm text-ink/70">
-                Name
-              </label>
+              <label htmlFor="name" className="font-body text-sm text-ink/70">Name</label>
               <input
                 id="name"
                 name="name"
@@ -66,6 +62,29 @@ export default async function EditCategoryPage({
                 autoFocus
                 className="font-body rounded-md border border-mist bg-paper px-3 py-2 text-ink outline-none focus:border-sage"
               />
+            </div>
+          </div>
+
+          {/* Color swatches */}
+          <div className="flex flex-col gap-2">
+            <label className="font-body text-sm text-ink/70">Color</label>
+            <div className="flex gap-2 flex-wrap">
+              {COLOR_PALETTE.map((c) => (
+                <label key={c.key} className="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="color"
+                    value={c.key}
+                    defaultChecked={(category.color ?? "sage") === c.key}
+                    className="sr-only peer"
+                  />
+                  <span
+                    className="block w-8 h-8 rounded-full ring-2 ring-offset-2 ring-transparent peer-checked:ring-ink transition-all"
+                    style={{ background: c.bg }}
+                    title={c.label}
+                  />
+                </label>
+              ))}
             </div>
           </div>
 
@@ -92,10 +111,7 @@ export default async function EditCategoryPage({
           Existing transactions will become uncategorised.
         </p>
 
-        <a
-          href="/categories"
-          className="font-body mt-6 block text-center text-sm text-sage underline"
-        >
+        <a href="/categories" className="font-body mt-6 block text-center text-sm text-sage underline">
           Cancel
         </a>
       </div>

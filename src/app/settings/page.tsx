@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { PushToggle } from "@/components/PushToggle";
 
 function Row({
   href,
@@ -87,6 +88,7 @@ export default async function SettingsPage() {
           </p>
           <div className="flex flex-col divide-y divide-mist rounded-2xl border border-mist bg-surface overflow-hidden">
             <Row href="/accounts" label="Manage accounts" hint={`${acctCount ?? 0} →`} />
+            <Row href="/wallets" label="Shared wallets" />
           </div>
         </section>
 
@@ -98,10 +100,10 @@ export default async function SettingsPage() {
           <div className="flex flex-col divide-y divide-mist rounded-2xl border border-mist bg-surface overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3.5">
               <div>
-                <p className="font-body text-sm">Weekly digest</p>
-                <p className="font-body text-xs text-ink/50">A calm summary every Sunday</p>
+                <p className="font-body text-sm">Push notifications</p>
+                <p className="font-body text-xs text-ink/50">Digest, overspend alerts &amp; bill reminders</p>
               </div>
-              <span className="font-body text-xs text-ink/40">Off</span>
+              <PushToggle />
             </div>
             <Row href="/digest" label="View this week's digest" />
           </div>
@@ -158,6 +160,7 @@ export default async function SettingsPage() {
           <div className="flex flex-col divide-y divide-mist rounded-2xl border border-mist bg-surface overflow-hidden">
             <Row href="/categories" label="Categories" hint={`${catCount ?? 0} →`} />
             <Row href="/budget" label="Budget" />
+            <Row href="/goals" label="Savings goals" />
           </div>
         </section>
 
@@ -168,6 +171,7 @@ export default async function SettingsPage() {
           </p>
           <div className="flex flex-col divide-y divide-mist rounded-2xl border border-mist bg-surface overflow-hidden">
             <Row href="/report" label="Monthly report" />
+            <Row href="/week" label="Weekly spending" />
             <Row href="/year" label="Year overview" />
             <Row href="/insights" label="Insights" />
             <Row href="/calendar" label="Calendar" />

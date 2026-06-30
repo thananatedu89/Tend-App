@@ -48,7 +48,7 @@ const tabs = [
   },
 ];
 
-export function BottomNav() {
+export function BottomNav({ hasPlanAlert }: { hasPlanAlert?: boolean }) {
   const pathname = usePathname();
   if (pathname === "/login" || pathname.startsWith("/onboarding")) return null;
 
@@ -75,6 +75,7 @@ export function BottomNav() {
           }
 
           const active = tab.match(pathname);
+          const showBadge = hasPlanAlert && tab.href === "/budget";
           return (
             <a
               key={tab.href}
@@ -83,7 +84,15 @@ export function BottomNav() {
                 active ? "text-ink" : "text-ink/35 hover:text-ink/60"
               }`}
             >
-              {tab.icon}
+              <span className="relative">
+                {tab.icon}
+                {showBadge && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full"
+                    style={{ background: "var(--color-terracotta)" }}
+                  />
+                )}
+              </span>
               <span className="font-body text-[10px] leading-none">{tab.label}</span>
             </a>
           );

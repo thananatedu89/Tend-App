@@ -13,10 +13,11 @@ export async function createCategory(formData: FormData) {
   if (!name) redirect("/categories?error=Enter+a+category+name");
 
   const icon = String(formData.get("icon") ?? "").trim().slice(0, 4) || null;
+  const color = String(formData.get("color") ?? "").trim() || null;
 
   const { error } = await supabase
     .from("categories")
-    .insert({ user_id: userData.user.id, name, icon });
+    .insert({ user_id: userData.user.id, name, icon, color });
 
   if (error) {
     redirect(`/categories?error=${encodeURIComponent(error.message)}`);
@@ -35,13 +36,14 @@ export async function updateCategory(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim().slice(0, 50);
   const icon = String(formData.get("icon") ?? "").trim().slice(0, 4) || null;
+  const color = String(formData.get("color") ?? "").trim() || null;
 
   if (!id) redirect("/categories");
   if (!name) redirect(`/categories/${id}/edit?error=Enter+a+category+name`);
 
   const { error } = await supabase
     .from("categories")
-    .update({ name, icon })
+    .update({ name, icon, color })
     .eq("id", id)
     .eq("user_id", userData.user.id);
 

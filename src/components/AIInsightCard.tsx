@@ -2,26 +2,9 @@
 
 import { useState } from "react";
 
-export function AIInsightCard({ isPlusUser }: { isPlusUser: boolean }) {
+export function AIInsightCard() {
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [summary, setSummary] = useState("");
-
-  if (!isPlusUser) {
-    return (
-      <section className="rounded-2xl border border-mist bg-surface px-5 py-4 flex items-center justify-between gap-4">
-        <div>
-          <p className="font-body text-sm font-medium">AI spending summary</p>
-          <p className="font-body text-xs text-ink/50 mt-0.5">90-day insights, powered by Claude</p>
-        </div>
-        <a
-          href="/upgrade"
-          className="font-body text-xs bg-ink text-paper rounded-full px-3 py-1.5 shrink-0 hover:bg-ink/80 transition-colors"
-        >
-          Plus only
-        </a>
-      </section>
-    );
-  }
 
   async function generate() {
     setState("loading");

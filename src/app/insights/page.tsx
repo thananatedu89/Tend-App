@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { createServiceClient } from "@/lib/supabase/service";
 import { startOfMonth } from "@/lib/month";
 import { formatThb } from "@/lib/format";
 import { CategoryIcon } from "@/components/CategoryIcon";
@@ -10,13 +9,6 @@ const longMonth = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numer
 
 export default async function InsightsPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const service = createServiceClient();
-  const { data: profile } = user
-    ? await service.from("profiles").select("subscription_tier").eq("id", user.id).maybeSingle()
-    : { data: null };
-  const isPlusUser = profile?.subscription_tier === "plus";
 
   const now = new Date();
 
@@ -140,7 +132,7 @@ export default async function InsightsPage() {
       </header>
 
       <div className="flex flex-col gap-10 px-6 pb-12">
-        <AIInsightCard isPlusUser={isPlusUser} />
+        <AIInsightCard />
 
         {/* Monthly spend trend */}
         <section className="flex flex-col gap-4">

@@ -32,10 +32,15 @@ export default async function SettingsPage() {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) redirect("/login");
 
-  const [{ count: catCount }, { count: acctCount }] = await Promise.all([
+  const service = (await import("@/lib/supabase/service")).createServiceClient();
+
+  const [{ count: catCount }, { count: acctCount }, { data: profile }] = await Promise.all([
     supabase.from("categories").select("*", { count: "exact", head: true }),
     supabase.from("accounts").select("*", { count: "exact", head: true }),
+    service.from("profiles").select("subscription_tier, subscription_interval").eq("id", userData.user.id).maybeSingle(),
   ]);
+
+  const isPlus = profile?.subscription_tier === "plus";
 
   return (
     <main className="flex flex-1 flex-col">
@@ -68,16 +73,40 @@ export default async function SettingsPage() {
           </p>
           <div className="flex flex-col divide-y divide-mist rounded-2xl border border-mist bg-surface overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3.5">
-              <span className="font-body text-sm">Tend Free</span>
-              <span className="font-body text-xs text-ink/40">Current plan</span>
+              <span className="font-body text-sm">
+                {isPlus
+                  ? profile?.subscription_interval === "lifetime"
+                    ? "Tend Forever"
+                    : "Tend Plus"
+                  : "Tend Free"}
+              </span>
+              <span className="font-body text-xs text-ink/40">
+                {isPlus
+                  ? profile?.subscription_interval === "lifetime"
+                    ? "Lifetime"
+                    : profile?.subscription_interval === "annual"
+                    ? "Annual"
+                    : "Monthly"
+                  : "Current plan"}
+              </span>
             </div>
-            <a
-              href="/upgrade"
-              className="flex items-center justify-between px-4 py-3.5 hover:bg-mist/30 transition-colors"
-            >
-              <span className="font-body text-sm text-sage">Upgrade to Tend Plus</span>
-              <span className="font-body text-xs text-sage">→</span>
-            </a>
+            {isPlus ? (
+              <a
+                href="/upgrade"
+                className="flex items-center justify-between px-4 py-3.5 hover:bg-mist/30 transition-colors"
+              >
+                <span className="font-body text-sm">Manage billing</span>
+                <span className="font-body text-xs text-ink/40">→</span>
+              </a>
+            ) : (
+              <a
+                href="/upgrade"
+                className="flex items-center justify-between px-4 py-3.5 hover:bg-mist/30 transition-colors"
+              >
+                <span className="font-body text-sm" style={{ color: "var(--color-sage)" }}>Upgrade to Tend Plus</span>
+                <span className="font-body text-xs" style={{ color: "var(--color-sage)" }}>→</span>
+              </a>
+            )}
           </div>
         </section>
 

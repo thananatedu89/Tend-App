@@ -39,6 +39,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      profiles: {
+        Row: {
+          id: string
+          display_name: string | null
+          stripe_customer_id: string | null
+          subscription_tier: string
+          subscription_status: string | null
+          subscription_interval: string | null
+          subscription_end_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          display_name?: string | null
+          stripe_customer_id?: string | null
+          subscription_tier?: string
+          subscription_status?: string | null
+          subscription_interval?: string | null
+          subscription_end_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          display_name?: string | null
+          stripe_customer_id?: string | null
+          subscription_tier?: string
+          subscription_status?: string | null
+          subscription_interval?: string | null
+          subscription_end_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       accounts: {
         Row: {
           balance: number

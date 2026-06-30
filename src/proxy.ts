@@ -2,7 +2,12 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function proxy(request: NextRequest) {
-  const isLoginPage = request.nextUrl.pathname.startsWith("/login");
+  const { pathname } = request.nextUrl;
+  // Routes that bypass auth entirely
+  if (pathname.startsWith("/api/")) return NextResponse.next({ request });
+  if (pathname.startsWith("/wallets/invite/")) return NextResponse.next({ request });
+
+  const isLoginPage = pathname.startsWith("/login");
 
   try {
     let response = NextResponse.next({ request });

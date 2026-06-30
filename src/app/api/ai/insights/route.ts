@@ -71,7 +71,7 @@ Peak spending day: ${peakDow}s`;
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
   const result = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
+    model: "gemini-1.5-flash",
     contents: `You are a calm, warm financial coach. Give brief, specific, non-judgmental insights. Use ฿ for Thai baht. Be direct. No disclaimers.
 
 Here is the user's spending data:

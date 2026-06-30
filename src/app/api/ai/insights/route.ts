@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
@@ -17,15 +16,23 @@ export async function GET() {
     .gte("occurred_at", sinceStr)
     .order("occurred_at", { ascending: false });
 
+  const all = txns ?? [];
+
+  // Aggregate by month
   const monthMap: Record<string, { spent: number; income: number }> = {};
   const catMap: Record<string, number> = {};
   const dowSpend = [0, 0, 0, 0, 0, 0, 0];
+  const weekMap: Record<string, number> = {};
 
-  for (const t of txns ?? []) {
+  for (const t of all) {
     const monthKey = t.occurred_at.slice(0, 7);
     if (!monthMap[monthKey]) monthMap[monthKey] = { spent: 0, income: 0 };
+    const weekKey = getWeekKey(t.occurred_at);
+    if (!weekMap[weekKey]) weekMap[weekKey] = 0;
+
     if (t.amount < 0) {
       monthMap[monthKey]!.spent += Math.abs(t.amount);
+      weekMap[weekKey]! += Math.abs(t.amount);
       const catName =
         t.categories && !Array.isArray(t.categories)
           ? (t.categories.name ?? "Uncategorized")
@@ -38,53 +45,89 @@ export async function GET() {
     }
   }
 
-  const DOW = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-  const peakDow = DOW[dowSpend.indexOf(Math.max(...dowSpend))] ?? "weekdays";
-
   const months = Object.entries(monthMap)
     .sort(([a], [b]) => a.localeCompare(b))
     .slice(-3)
     .map(([key, v]) => ({
-      label: new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(
-        new Date(key + "-15"),
-      ),
+      label: new Intl.DateTimeFormat("en-GB", { month: "long" }).format(new Date(key + "-15")),
       ...v,
     }));
 
-  const topCategories = Object.entries(catMap)
+  const topCats = Object.entries(catMap)
     .sort(([, a], [, b]) => b - a)
-    .slice(0, 6)
+    .slice(0, 3)
     .map(([name, total]) => ({ name, total }));
 
-  if (months.length === 0) {
-    return NextResponse.json({ summary: "No transactions in the last 90 days yet." });
+  const DOW = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const peakDowIdx = dowSpend.indexOf(Math.max(...dowSpend));
+  const peakDow = DOW[peakDowIdx]!;
+
+  const totalSpent = months.reduce((s, m) => s + m.spent, 0);
+  const totalIncome = months.reduce((s, m) => s + m.income, 0);
+
+  const current = months[months.length - 1];
+  const prev = months[months.length - 2];
+
+  const weekValues = Object.values(weekMap).filter(v => v > 0);
+  const avgWeekly = weekValues.length ? weekValues.reduce((a, b) => a + b, 0) / weekValues.length : 0;
+  const maxWeek = Math.max(...weekValues, 0);
+  const spikePct = avgWeekly > 0 ? Math.round((maxWeek / avgWeekly - 1) * 100) : 0;
+
+  const lines: string[] = [];
+
+  // Opening summary
+  if (months.length === 0 || totalSpent === 0) {
+    return NextResponse.json({ summary: "No spending recorded in the last 90 days yet." });
   }
 
-  const dataBlock = `Monthly spending (last 3 months):
-${months.map((m) => `- ${m.label}: spent ฿${m.spent.toLocaleString()}, income ฿${m.income.toLocaleString()}`).join("\n")}
+  if (current && prev && prev.spent > 0) {
+    const delta = current.spent - prev.spent;
+    const pct = Math.abs(Math.round((delta / prev.spent) * 100));
+    if (delta > 0) {
+      lines.push(`Your spending in ${current.label} was ฿${fmt(current.spent)}, up ${pct}% from ${prev.label}.`);
+    } else if (delta < 0) {
+      lines.push(`Your spending in ${current.label} was ฿${fmt(current.spent)}, down ${pct}% from ${prev.label} — a good trend.`);
+    } else {
+      lines.push(`Your spending in ${current.label} was ฿${fmt(current.spent)}, about the same as ${prev.label}.`);
+    }
+  } else if (current) {
+    lines.push(`You spent ฿${fmt(current.spent)} this month across ${Object.keys(catMap).length} categories.`);
+  }
 
-Top categories (90 days):
-${topCategories.map((c) => `- ${c.name}: ฿${c.total.toLocaleString()}`).join("\n")}
+  if (totalIncome > 0) {
+    const savingsRate = Math.round(((totalIncome - totalSpent) / totalIncome) * 100);
+    if (savingsRate > 0) {
+      lines.push(`Over the past 3 months you kept ${savingsRate}% of your income — ฿${fmt(totalIncome - totalSpent)} saved.`);
+    } else {
+      lines.push(`Over 3 months your spending exceeded income by ฿${fmt(Math.abs(totalIncome - totalSpent))}.`);
+    }
+  }
 
-Peak spending day: ${peakDow}s`;
+  lines.push("");
 
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+  // Bullet observations
+  if (topCats[0]) {
+    const topShare = totalSpent > 0 ? Math.round((topCats[0].total / totalSpent) * 100) : 0;
+    lines.push(`• ${topCats[0].name} is your biggest expense at ฿${fmt(topCats[0].total)} (${topShare}% of total spending).`);
+  }
 
-  const result = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
-    contents: `You are a calm, warm financial coach. Give brief, specific, non-judgmental insights. Use ฿ for Thai baht. Be direct. No disclaimers.
+  if (spikePct > 40 && weekValues.length >= 3) {
+    lines.push(`• Your busiest week was ฿${fmt(maxWeek)}, which is ${spikePct}% above your weekly average — most spending happens on ${peakDow}s.`);
+  } else {
+    lines.push(`• You tend to spend most on ${peakDow}s. Reviewing those transactions could reveal easy savings.`);
+  }
 
-Here is the user's spending data:
+  return NextResponse.json({ summary: lines.join("\n") });
+}
 
-${dataBlock}
+function fmt(n: number) {
+  return Math.round(n).toLocaleString();
+}
 
-Give:
-1. A 2-sentence summary of their financial picture this quarter.
-2. Two specific observations or suggestions based on the data.
-
-Format: short paragraph, then exactly 2 bullet points starting with •`,
-  });
-
-  const summary = result.text ?? "";
-  return NextResponse.json({ summary });
+function getWeekKey(dateStr: string) {
+  const d = new Date(dateStr + "T12:00:00");
+  const day = d.getDay();
+  const diff = (day + 6) % 7;
+  d.setDate(d.getDate() - diff);
+  return d.toISOString().slice(0, 10);
 }

@@ -47,73 +47,77 @@ function parseReceipt(text: string) {
     .map((l) => l.trim())
     .filter(Boolean);
 
-  // --- Amount: find the largest number near total keywords ---
-  const totalKeywords = /total|grand|net|amount|รวม|ยอด|ชำระ|sum/i;
+  const totalKeywords = /total|grand|net|รวม|ยอด|ชำระ|สุทธิ|sum|subtotal/i;
+  // Lines that are definitely NOT merchant names
+  const headerNoise = /receipt|invoice|tax|vat|เลขที่|วันที่|หมายเลข|เวลา|time|date|cashier|ref|order|slip|#\d|no\.|copy|original|ต้นฉบับ|สาขา|branch/i;
+  // Patterns that look like codes/IDs, not names
+  const looksLikeCode = (s: string) =>
+    /^\d+$/.test(s) ||                          // all digits
+    /^[A-Z0-9\-\/]{6,}$/.test(s) ||            // all-caps code e.g. "INV-00123"
+    /^\+?0[689]\d{7,8}$/.test(s.replace(/[\s\-]/g, "")) || // Thai phone number
+    /^\d{13}$/.test(s.replace(/[\s\-]/g, ""));  // Tax ID
+
+  // --- Amount ---
   let amount: string | null = null;
 
-  // First pass: look for a total keyword on the same line as a number
-  for (const line of lines) {
-    if (totalKeywords.test(line)) {
-      const nums = extractNumbers(line);
-      if (nums.length) {
-        amount = String(Math.max(...nums));
-        break;
-      }
+  // Pass 1: keyword on same line as number — scan from bottom (totals are at the end)
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (totalKeywords.test(lines[i]!)) {
+      const nums = extractAmounts(lines[i]!);
+      if (nums.length) { amount = String(nums[nums.length - 1]); break; }
     }
   }
 
-  // Second pass: look for keyword line followed immediately by a number line
+  // Pass 2: keyword line immediately followed by a number line (bottom-up)
   if (!amount) {
-    for (let i = 0; i < lines.length - 1; i++) {
+    for (let i = lines.length - 2; i >= 0; i--) {
       if (totalKeywords.test(lines[i]!)) {
-        const nums = extractNumbers(lines[i + 1]!);
-        if (nums.length) {
-          amount = String(Math.max(...nums));
-          break;
-        }
+        const nums = extractAmounts(lines[i + 1]!);
+        if (nums.length) { amount = String(nums[nums.length - 1]); break; }
       }
     }
   }
 
-  // Third pass: just pick the largest number on the receipt (likely the total)
+  // Pass 3: largest amount in the bottom third of the receipt
   if (!amount) {
-    const allNums = lines.flatMap(extractNumbers);
-    if (allNums.length) {
-      amount = String(Math.max(...allNums));
-    }
+    const bottomLines = lines.slice(Math.floor(lines.length * 0.5));
+    const nums = bottomLines.flatMap(extractAmounts);
+    if (nums.length) amount = String(Math.max(...nums));
   }
 
-  // --- Date: look for common date patterns ---
+  // Pass 4: largest amount anywhere, but exclude phone/ID-looking numbers
+  if (!amount) {
+    const nums = lines.flatMap(extractAmounts);
+    if (nums.length) amount = String(Math.max(...nums));
+  }
+
+  // --- Date ---
   const datePatterns = [
-    // DD/MM/YYYY or DD-MM-YYYY
-    { re: /\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/, parse: (m: RegExpMatchArray) => toIso(m[3]!, m[2]!, m[1]!) },
-    // YYYY/MM/DD or YYYY-MM-DD
-    { re: /\b(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})\b/, parse: (m: RegExpMatchArray) => toIso(m[1]!, m[2]!, m[3]!) },
-    // DD Mon YYYY  (e.g. 01 Jul 2026)
-    { re: /\b(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{4})\b/i, parse: (m: RegExpMatchArray) => toIso(m[3]!, String(monthNum(m[2]!)), m[1]!) },
+    { re: /\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/, fn: (m: RegExpMatchArray) => toIso(m[3]!, m[2]!, m[1]!) },
+    { re: /\b(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})\b/, fn: (m: RegExpMatchArray) => toIso(m[1]!, m[2]!, m[3]!) },
+    { re: /\b(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s,]+(\d{4})\b/i, fn: (m: RegExpMatchArray) => toIso(m[3]!, String(monthNum(m[2]!)), m[1]!) },
   ];
 
   let date: string | null = null;
   const fullText = lines.join(" ");
-  for (const { re, parse } of datePatterns) {
+  for (const { re, fn } of datePatterns) {
     const m = fullText.match(re);
-    if (m) {
-      const iso = parse(m);
-      if (iso) { date = iso; break; }
-    }
+    if (m) { const iso = fn(m); if (iso) { date = iso; break; } }
   }
 
-  // --- Note / merchant: first line that looks like a name ---
+  // --- Merchant name: look in first 6 lines for meaningful text ---
   let note: string | null = null;
-  for (const line of lines) {
+  const topLines = lines.slice(0, Math.min(8, lines.length));
+  for (const line of topLines) {
     if (
       line.length >= 3 &&
-      !/^\d/.test(line) &&          // doesn't start with a digit
-      !/^[\+\-\*\/]/.test(line) &&  // not an operator line
+      line.length <= 60 &&
+      !looksLikeCode(line) &&
+      !headerNoise.test(line) &&
       !totalKeywords.test(line) &&
-      !/receipt|invoice|tax|vat|เลขที่|วันที่|หมายเลข/i.test(line)
+      !/^[\d\+\-\*\/฿=]+$/.test(line)  // not a math/price line
     ) {
-      note = line.slice(0, 60);
+      note = line;
       break;
     }
   }
@@ -121,10 +125,13 @@ function parseReceipt(text: string) {
   return { amount, date, note };
 }
 
-function extractNumbers(line: string): number[] {
-  const cleaned = line.replace(/[฿,]/g, "");
-  const matches = cleaned.match(/\d+(\.\d{1,2})?/g) ?? [];
-  return matches.map(Number).filter((n) => n > 0 && n < 1_000_000);
+function extractAmounts(line: string): number[] {
+  // Remove currency symbols and thousands commas, then find decimal numbers
+  const cleaned = line.replace(/[฿$€£,]/g, "");
+  const matches = cleaned.match(/\b\d{1,6}(\.\d{1,2})?\b/g) ?? [];
+  return matches
+    .map(Number)
+    .filter((n) => n >= 1 && n < 500_000 && !/^0\d{6,}/.test(String(n))); // exclude phone-like
 }
 
 function toIso(y: string, m: string, d: string): string | null {

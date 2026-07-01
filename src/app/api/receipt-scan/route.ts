@@ -47,28 +47,46 @@ function parseReceipt(text: string) {
     .map((l) => l.trim())
     .filter(Boolean);
 
-  const totalKeywords = /total|grand|net|รวม|ยอด|ชำระ|สุทธิ|sum|subtotal/i;
+  // Keywords ranked by specificity
+  const netKeywords    = /สุทธิ|ยอดรับสุทธิ|ยอดสุทธิ|รับสุทธิ|net\s*pay|take.?home/i;
+  const totalKeywords  = /total|grand|รวมทั้งสิ้น|รวมเงิน|ยอดรวม|ยอดชำระ|ชำระเงิน|รวม|sum/i;
   // Lines that are definitely NOT merchant names
-  const headerNoise = /receipt|invoice|tax|vat|เลขที่|วันที่|หมายเลข|เวลา|time|date|cashier|ref|order|slip|#\d|no\.|copy|original|ต้นฉบับ|สาขา|branch/i;
-  // Patterns that look like codes/IDs, not names
+  const headerNoise = /receipt|invoice|tax|vat|เลขที่|วันที่|หมายเลข|เวลา|time|date|cashier|ref|order|slip|#\d|no\.|copy|original|ต้นฉบับ|สาขา|branch|pay\s*slip|ใบรับ|ใบเสร็จ/i;
+  // Patterns that look like codes/IDs/stamps, not names
   const looksLikeCode = (s: string) =>
-    /^\d+$/.test(s) ||                          // all digits
-    /^[A-Z0-9\-\/]{6,}$/.test(s) ||            // all-caps code e.g. "INV-00123"
-    /^\+?0[689]\d{7,8}$/.test(s.replace(/[\s\-]/g, "")) || // Thai phone number
-    /^\d{13}$/.test(s.replace(/[\s\-]/g, ""));  // Tax ID
+    /^\d+$/.test(s) ||
+    /^[A-Z0-9\-\/]{1,6}$/.test(s) ||           // short all-caps code or stamp (DEMO, COPY, VOID)
+    /^[A-Z]{4,}$/.test(s) ||                    // all-caps word (stamp)
+    /^\+?0[689]\d{7,8}$/.test(s.replace(/[\s\-]/g, "")) ||
+    /^\d{13}$/.test(s.replace(/[\s\-]/g, ""));
 
   // --- Amount ---
   let amount: string | null = null;
 
-  // Pass 1: keyword on same line as number — scan from bottom (totals are at the end)
+  // Pass 1 (highest priority): net pay keyword — bottom-up
   for (let i = lines.length - 1; i >= 0; i--) {
-    if (totalKeywords.test(lines[i]!)) {
+    if (netKeywords.test(lines[i]!)) {
       const nums = extractAmounts(lines[i]!);
       if (nums.length) { amount = String(nums[nums.length - 1]); break; }
+      // keyword on its own line — check next line
+      if (i + 1 < lines.length) {
+        const nums2 = extractAmounts(lines[i + 1]!);
+        if (nums2.length) { amount = String(nums2[nums2.length - 1]); break; }
+      }
     }
   }
 
-  // Pass 2: keyword line immediately followed by a number line (bottom-up)
+  // Pass 2: total keyword on same line — bottom-up
+  if (!amount) {
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (totalKeywords.test(lines[i]!)) {
+        const nums = extractAmounts(lines[i]!);
+        if (nums.length) { amount = String(nums[nums.length - 1]); break; }
+      }
+    }
+  }
+
+  // Pass 3: total keyword followed by a number line
   if (!amount) {
     for (let i = lines.length - 2; i >= 0; i--) {
       if (totalKeywords.test(lines[i]!)) {
@@ -78,17 +96,12 @@ function parseReceipt(text: string) {
     }
   }
 
-  // Pass 3: largest amount in the bottom third of the receipt
+  // Pass 4: smallest reasonable amount in the bottom half
+  // (totals are usually LESS than subtotals/YTD figures)
   if (!amount) {
     const bottomLines = lines.slice(Math.floor(lines.length * 0.5));
-    const nums = bottomLines.flatMap(extractAmounts);
-    if (nums.length) amount = String(Math.max(...nums));
-  }
-
-  // Pass 4: largest amount anywhere, but exclude phone/ID-looking numbers
-  if (!amount) {
-    const nums = lines.flatMap(extractAmounts);
-    if (nums.length) amount = String(Math.max(...nums));
+    const nums = bottomLines.flatMap(extractAmounts).filter(n => n >= 1 && n < 200_000);
+    if (nums.length) amount = String(Math.min(...nums)); // smallest = most likely net
   }
 
   // --- Date ---
@@ -105,20 +118,22 @@ function parseReceipt(text: string) {
     if (m) { const iso = fn(m); if (iso) { date = iso; break; } }
   }
 
-  // --- Merchant name: look in first 6 lines for meaningful text ---
+  // --- Merchant name: look in first 8 lines for meaningful text ---
   let note: string | null = null;
-  const topLines = lines.slice(0, Math.min(8, lines.length));
+  const topLines = lines.slice(0, Math.min(10, lines.length));
   for (const line of topLines) {
     if (
-      line.length >= 3 &&
+      line.length >= 5 &&              // skip very short tokens (stamps, codes)
       line.length <= 60 &&
       !looksLikeCode(line) &&
       !headerNoise.test(line) &&
+      !netKeywords.test(line) &&
       !totalKeywords.test(line) &&
-      !/^[\d\+\-\*\/฿=]+$/.test(line)  // not a math/price line
+      !/^[\d\+\-\*\/฿=\.\,\s]+$/.test(line)  // not a pure number/math line
     ) {
+      // Prefer lines that contain Thai characters (company names in Thailand are in Thai)
       note = line;
-      break;
+      if (/[฀-๿]/.test(line)) break; // stop at first Thai line
     }
   }
 

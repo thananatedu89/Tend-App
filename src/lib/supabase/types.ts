@@ -287,6 +287,41 @@ export type Database = {
           },
         ]
       }
+      account_balance_history: {
+        Row: {
+          id: string
+          account_id: string
+          user_id: string
+          balance: number
+          recorded_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          account_id: string
+          user_id: string
+          balance: number
+          recorded_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          account_id?: string
+          user_id?: string
+          balance?: number
+          recorded_at?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_balance_history_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transaction_templates: {
         Row: {
           id: string

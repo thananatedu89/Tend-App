@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAccount } from "./actions";
 import { formatThb } from "@/lib/format";
+import { Toast } from "@/components/Toast";
 
 function stalenessLabel(updatedAt: string | null): string | null {
   if (!updatedAt) return "Not set";
@@ -39,6 +40,7 @@ export default async function AccountsPage({
 
   return (
     <main className="flex flex-1 flex-col px-6">
+      <Toast />
       <header className="flex items-center gap-4 py-6">
         <a href="/settings" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">←</a>
         <h1 className="font-display text-3xl">Accounts</h1>
@@ -46,17 +48,20 @@ export default async function AccountsPage({
 
       {/* Net worth */}
       {hasAny && (
-        <div className="mb-6 rounded-2xl border border-mist bg-surface px-5 py-4">
+        <a href="/net-worth" className="mb-5 rounded-2xl border border-mist bg-surface px-5 py-4 block hover:bg-mist/20 transition-colors">
           <p style={{ fontSize: "11px", fontWeight: 500, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--color-ink)", opacity: 0.4, marginBottom: "6px" }}>
             Net worth
           </p>
-          <p
-            className="font-display tabular-nums"
-            style={{ fontSize: "40px", fontWeight: 500, letterSpacing: "-0.025em", lineHeight: 1, color: netWorth >= 0 ? "var(--color-ink)" : "var(--color-terracotta)" }}
-          >
-            {netWorth < 0 ? "−" : ""}{formatThb(Math.abs(netWorth))}
-          </p>
-        </div>
+          <div className="flex items-end justify-between">
+            <p
+              className="font-display tabular-nums"
+              style={{ fontSize: "40px", fontWeight: 500, letterSpacing: "-0.025em", lineHeight: 1, color: netWorth >= 0 ? "var(--color-ink)" : "var(--color-terracotta)" }}
+            >
+              {netWorth < 0 ? "−" : ""}{formatThb(Math.abs(netWorth))}
+            </p>
+            <span className="font-body text-xs text-ink/30 pb-1">History →</span>
+          </div>
+        </a>
       )}
 
       {/* Account list */}
@@ -97,6 +102,27 @@ export default async function AccountsPage({
           <p className="font-body text-sm text-ink/40">No accounts yet.</p>
           <p className="font-body text-xs text-ink/30 max-w-xs">Add your bank accounts, cash, and cards to track your net worth.</p>
         </div>
+      )}
+
+      {/* Transfer between accounts */}
+      {list.length >= 2 && (
+        <a
+          href="/accounts/transfer"
+          className="flex items-center justify-between rounded-2xl border border-mist bg-surface px-5 py-4 mb-5 hover:bg-mist/20 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-9 h-9 rounded-full bg-sage-soft text-sage shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-body text-sm">Transfer between accounts</p>
+              <p className="font-body text-[11px] text-ink/40">Move money without affecting budget</p>
+            </div>
+          </div>
+          <span className="font-body text-xs text-ink/30">→</span>
+        </a>
       )}
 
       {/* Add account */}

@@ -9,7 +9,7 @@ import {
   isCurrentMonth,
 } from "@/lib/month";
 import { paceSignal, forecastLine, healthScore } from "@/lib/signal";
-import { getUpcomingBills } from "@/lib/bills";
+import { getSubscriptions } from "@/lib/bills";
 import { CategoryIcon, CategoryBadge } from "@/components/CategoryIcon";
 
 const monthHeading = new Intl.DateTimeFormat("en-GB", {
@@ -101,10 +101,9 @@ export default async function Home({
       .lt("occurred_at", monthStart),
     supabase
       .from("transactions")
-      .select("id, amount, note, category_id, occurred_at, categories(name)")
-      .eq("is_recurring", true)
+      .select("id, amount, note, category_id, occurred_at, is_recurring, categories(name)")
       .lt("amount", 0)
-      .gte("occurred_at", (() => { const d = new Date(); d.setDate(d.getDate() - 90); return d.toISOString().slice(0, 10); })())
+      .gte("occurred_at", (() => { const d = new Date(); d.setMonth(d.getMonth() - 6); return d.toISOString().slice(0, 10); })())
       .order("occurred_at", { ascending: false }),
   ]);
 
@@ -279,12 +278,14 @@ export default async function Home({
       })
     : null;
 
-  // Upcoming bills — recurring transactions due in next 7 days
+  // Upcoming bills — pattern-detected + flagged recurring, due in next 7 days
   const upcomingBills = viewing && !isNewUser
-    ? getUpcomingBills(
-        (recurringTxns ?? []) as Parameters<typeof getUpcomingBills>[0],
-        7,
-      )
+    ? getSubscriptions(
+        (recurringTxns ?? []).map((t) => ({
+          ...t,
+          categories: t.categories && !Array.isArray(t.categories) ? t.categories : null,
+        })),
+      ).filter((s) => s.daysUntil >= 0 && s.daysUntil <= 7)
     : [];
 
   // 4 most recent transactions for the activity preview
@@ -529,7 +530,10 @@ export default async function Home({
           {/* Upcoming bills */}
           {upcomingBills.length > 0 && (
             <div className="px-6 pb-6">
-              <p className="font-body text-xs uppercase tracking-widest text-ink/40 mb-3">Coming up</p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="font-body text-xs uppercase tracking-widest text-ink/40">Coming up</p>
+                <a href="/subscriptions" className="font-body text-xs text-ink/40 hover:text-ink/70 transition-colors">View all →</a>
+              </div>
               <div className="flex flex-col divide-y divide-mist rounded-2xl border border-mist bg-surface overflow-hidden">
                 {upcomingBills.map((bill) => (
                   <a

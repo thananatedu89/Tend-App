@@ -118,6 +118,7 @@ export default async function SettingsPage() {
           <div className="flex flex-col divide-y divide-mist rounded-2xl border border-mist bg-surface overflow-hidden">
             <Row href="/accounts" label="Manage accounts" hint={`${acctCount ?? 0} →`} />
             <Row href="/wallets" label="Shared wallets" />
+            <Row href="/subscriptions" label="Subscriptions & bills" />
           </div>
         </section>
 

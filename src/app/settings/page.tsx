@@ -200,6 +200,7 @@ export default async function SettingsPage() {
             Reports
           </p>
           <div className="flex flex-col divide-y divide-mist rounded-2xl border border-mist bg-surface overflow-hidden">
+            <Row href="/income" label="Income & savings rate" />
             <Row href="/net-worth" label="Net worth" />
             <Row href="/merchants" label="Merchants & payees" />
             <Row href="/report" label="Monthly report" />

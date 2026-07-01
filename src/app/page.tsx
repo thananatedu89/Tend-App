@@ -113,6 +113,12 @@ export default async function Home({
     .filter((t) => t.amount < 0)
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
+  const incomeThisMonth = (transactions ?? [])
+    .filter((t) => t.amount > 0)
+    .reduce((sum, t) => sum + t.amount, 0);
+  const savedThisMonth = incomeThisMonth - spentThisMonth;
+  const savingsRate = incomeThisMonth > 0 ? (savedThisMonth / incomeThisMonth) * 100 : 0;
+
   const leftToSpend = budget ? budget.total_amount - spentThisMonth : null;
 
   const weekSpend = (weekTxns ?? []).reduce((s, t) => s + Math.abs(t.amount), 0);
@@ -488,6 +494,71 @@ export default async function Home({
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Savings rate card */}
+          {viewing && !isNewUser && incomeThisMonth > 0 && (
+            <div className="px-6 pb-6">
+              <div className="rounded-2xl border border-mist bg-surface px-5 py-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-body text-xs uppercase tracking-widest text-ink/40">Savings rate</p>
+                  <a href="/income" className="font-body text-xs text-ink/40 hover:text-ink/70 transition-colors">History →</a>
+                </div>
+                <div className="flex items-end gap-3 mb-3">
+                  <p
+                    className="font-display tabular-nums"
+                    style={{
+                      fontSize: "40px",
+                      lineHeight: 1,
+                      fontWeight: 500,
+                      color:
+                        savingsRate >= 20
+                          ? "var(--color-sage)"
+                          : savingsRate >= 0
+                          ? "#9a8030"
+                          : "var(--color-terracotta)",
+                    }}
+                  >
+                    {Math.round(savingsRate)}%
+                  </p>
+                  {savedThisMonth > 0 && (
+                    <p className="font-body text-sm text-ink/40 mb-1">
+                      {formatThb(Math.round(savedThisMonth))} saved
+                    </p>
+                  )}
+                </div>
+                <div
+                  style={{
+                    height: "4px",
+                    borderRadius: "999px",
+                    background: "var(--color-mist)",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${Math.min(100, Math.max(0, savingsRate))}%`,
+                      height: "100%",
+                      borderRadius: "999px",
+                      transition: "width .4s ease",
+                      background:
+                        savingsRate >= 20
+                          ? "var(--color-sage)"
+                          : savingsRate >= 0
+                          ? "#c4a040"
+                          : "var(--color-terracotta)",
+                    }}
+                  />
+                </div>
+                <p className="font-body text-xs text-ink/40 mt-2">
+                  {savingsRate >= 20
+                    ? "Solid savings pace."
+                    : savingsRate >= 0
+                    ? "Saving a little — keep it up."
+                    : "Expenses exceed income this month."}
+                </p>
               </div>
             </div>
           )}

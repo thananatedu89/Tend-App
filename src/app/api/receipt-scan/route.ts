@@ -63,12 +63,12 @@ function parseReceipt(text: string) {
   // --- Amount ---
   let amount: string | null = null;
 
-  // Pass 1 (highest priority): net pay keyword — bottom-up
+  // Pass 1: keyword on same line — bottom-up (works when OCR reads Thai correctly)
   for (let i = lines.length - 1; i >= 0; i--) {
-    if (netKeywords.test(lines[i]!)) {
+    if (netKeywords.test(lines[i]!) || totalKeywords.test(lines[i]!)) {
       const nums = extractAmounts(lines[i]!);
       if (nums.length) { amount = String(nums[nums.length - 1]); break; }
-      // keyword on its own line — check next line
+      // keyword alone on its line — amount is on next line
       if (i + 1 < lines.length) {
         const nums2 = extractAmounts(lines[i + 1]!);
         if (nums2.length) { amount = String(nums2[nums2.length - 1]); break; }
@@ -76,32 +76,25 @@ function parseReceipt(text: string) {
     }
   }
 
-  // Pass 2: total keyword on same line — bottom-up
+  // Pass 2 (robust fallback): last decimal amount in the document.
+  // Thai OCR often garbles keywords (สุทธิ → "salaam"), but the NET/TOTAL
+  // is always the last meaningful number before bank accounts / signatures.
   if (!amount) {
-    for (let i = lines.length - 1; i >= 0; i--) {
-      if (totalKeywords.test(lines[i]!)) {
-        const nums = extractAmounts(lines[i]!);
-        if (nums.length) { amount = String(nums[nums.length - 1]); break; }
+    // Collect all (index, value) pairs for amounts that look like currency
+    // (must have a decimal point — avoids matching whole-number codes/IDs)
+    const decimalAmounts: number[] = [];
+    for (const line of lines) {
+      const cleaned = line.replace(/[฿$€£,]/g, "");
+      const matches = cleaned.match(/\b\d{1,6}\.\d{2}\b/g) ?? [];
+      for (const m of matches) {
+        const n = Number(m);
+        if (n >= 1 && n < 500_000) decimalAmounts.push(n);
       }
     }
-  }
-
-  // Pass 3: total keyword followed by a number line
-  if (!amount) {
-    for (let i = lines.length - 2; i >= 0; i--) {
-      if (totalKeywords.test(lines[i]!)) {
-        const nums = extractAmounts(lines[i + 1]!);
-        if (nums.length) { amount = String(nums[nums.length - 1]); break; }
-      }
+    if (decimalAmounts.length) {
+      // Take the last decimal amount — on receipts & pay slips this is always the total/net
+      amount = String(decimalAmounts[decimalAmounts.length - 1]);
     }
-  }
-
-  // Pass 4: smallest reasonable amount in the bottom half
-  // (totals are usually LESS than subtotals/YTD figures)
-  if (!amount) {
-    const bottomLines = lines.slice(Math.floor(lines.length * 0.5));
-    const nums = bottomLines.flatMap(extractAmounts).filter(n => n >= 1 && n < 200_000);
-    if (nums.length) amount = String(Math.min(...nums)); // smallest = most likely net
   }
 
   // --- Date ---
@@ -123,13 +116,15 @@ function parseReceipt(text: string) {
   const topLines = lines.slice(0, Math.min(10, lines.length));
   for (const line of topLines) {
     if (
-      line.length >= 5 &&              // skip very short tokens (stamps, codes)
+      line.length >= 5 &&
       line.length <= 60 &&
       !looksLikeCode(line) &&
       !headerNoise.test(line) &&
       !netKeywords.test(line) &&
       !totalKeywords.test(line) &&
-      !/^[\d\+\-\*\/฿=\.\,\s]+$/.test(line)  // not a pure number/math line
+      !/^[\d\+\-\*\/฿=\.\,\s\:]+$/.test(line) &&   // not a pure number/math/time line
+      !/^\d[\-:]\d/.test(line) &&                   // not a time/code like "0-0:0" or "1:30"
+      !/^[=\-\<\>]{2,}/.test(line)                  // not a separator line like "====" or "->>"
     ) {
       // Prefer lines that contain Thai characters (company names in Thailand are in Thai)
       note = line;

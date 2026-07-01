@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 
-type Extracted = { amount: string | null; date: string | null; note: string | null };
+type Extracted = { amount: string | null; date: string | null; note: string | null; raw: string };
 
 export function ReceiptUpload({ existingUrl }: { existingUrl?: string | null }) {
   const [preview, setPreview] = useState<string | null>(existingUrl ?? null);
@@ -98,6 +98,13 @@ export function ReceiptUpload({ existingUrl }: { existingUrl?: string | null }) 
               )}
               {!extracted.amount && !extracted.date && !extracted.note && (
                 <p className="font-body text-xs text-ink/50">Could not read details — fill in manually.</p>
+              )}
+              {/* Debug: raw OCR text */}
+              {extracted.raw && (
+                <details className="mt-1">
+                  <summary className="font-body text-[10px] text-ink/30 cursor-pointer">Raw OCR text</summary>
+                  <pre className="font-body text-[9px] text-ink/40 whitespace-pre-wrap mt-1 max-h-32 overflow-y-auto">{extracted.raw}</pre>
+                </details>
               )}
             </div>
           )}

@@ -1,22 +1,23 @@
 import { createClient } from "@/lib/supabase/server";
-import { createTransaction } from "../actions";
+import { createTransaction, deleteTemplate } from "../actions";
 import { formatThb } from "@/lib/format";
 import { NoteInput } from "@/components/NoteInput";
 import { catOptionLabel } from "@/components/CategoryIcon";
 import { ReceiptUpload } from "@/components/ReceiptUpload";
+import { AutoCategorize } from "@/components/AutoCategorize";
 
 export default async function NewTransactionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; from?: string }>;
+  searchParams: Promise<{ error?: string; from?: string; template?: string }>;
 }) {
-  const { error, from: fromId } = await searchParams;
+  const { error, from: fromId, template: templateId } = await searchParams;
   const supabase = await createClient();
 
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData.user?.id;
 
-  const [{ data: categories }, { data: accounts }, { data: recentNotes }, { data: walletMemberships }] =
+  const [{ data: categories }, { data: accounts }, { data: recentNotes }, { data: walletMemberships }, { data: templates }] =
     await Promise.all([
       supabase.from("categories").select("id, name, icon").order("name"),
       supabase.from("accounts").select("id, name").order("name"),
@@ -29,6 +30,9 @@ export default async function NewTransactionPage({
       userId
         ? supabase.from("wallet_members").select("wallet_id").eq("user_id", userId)
         : { data: [] },
+      userId
+        ? supabase.from("transaction_templates").select("id, name, amount, category_id, account_id, note").eq("user_id", userId).order("created_at", { ascending: false }).limit(10)
+        : { data: [] },
     ]);
 
   const walletIds = (walletMemberships ?? []).map((m) => m.wallet_id);
@@ -38,7 +42,7 @@ export default async function NewTransactionPage({
 
   const today = new Date().toISOString().slice(0, 10);
 
-  // Pre-fill from a previous transaction
+  // Pre-fill from a previous transaction or saved template
   let prefill: {
     amount: number;
     categoryId: string | null;
@@ -46,7 +50,17 @@ export default async function NewTransactionPage({
     note: string | null;
   } | null = null;
 
-  if (fromId) {
+  if (templateId) {
+    const tmpl = (templates ?? []).find((t) => t.id === templateId);
+    if (tmpl) {
+      prefill = {
+        amount: tmpl.amount,
+        categoryId: tmpl.category_id,
+        accountId: tmpl.account_id,
+        note: tmpl.note,
+      };
+    }
+  } else if (fromId) {
     const { data: source } = await supabase
       .from("transactions")
       .select("amount, category_id, account_id, note")
@@ -137,6 +151,36 @@ export default async function NewTransactionPage({
             Cancel
           </a>
         </div>
+
+        {/* Saved templates */}
+        {!prefill && templates && templates.length > 0 && (
+          <div className="flex flex-col gap-2 mb-6">
+            <p className="font-body text-xs text-ink/40">Quick templates</p>
+            <div className="flex flex-wrap gap-2">
+              {templates.map((t) => (
+                <div key={t.id} className="flex items-center gap-0.5">
+                  <a
+                    href={`/transactions/new?template=${t.id}`}
+                    className="font-body text-sm rounded-l-full border border-r-0 border-mist px-3 py-1.5 text-ink/70 hover:border-sage hover:text-sage transition-colors"
+                  >
+                    {t.name}
+                    <span className="tabular-nums ml-1.5 text-xs text-ink/40">{formatThb(t.amount)}</span>
+                  </a>
+                  <form action={deleteTemplate}>
+                    <input type="hidden" name="id" value={t.id} />
+                    <button
+                      type="submit"
+                      className="font-body text-xs border border-mist rounded-r-full px-2 py-1.5 text-ink/30 hover:text-ink/60 hover:border-ink/30 transition-colors"
+                      title="Remove template"
+                    >
+                      ×
+                    </button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Recurring suggestions — hidden when pre-filling */}
         {!prefill && suggestions.length > 0 && (
@@ -274,7 +318,7 @@ export default async function NewTransactionPage({
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1">
               <label htmlFor="note" className="font-body text-sm text-ink/70">
                 Note (optional)
               </label>
@@ -282,6 +326,11 @@ export default async function NewTransactionPage({
                 defaultValue={prefill?.note ?? ""}
                 suggestions={noteSuggestions}
               />
+              {!prefill && (
+                <AutoCategorize
+                  categories={(categories ?? []).map(c => ({ id: c.id, name: c.name }))}
+                />
+              )}
             </div>
 
             <label className="flex items-center gap-3 cursor-pointer">

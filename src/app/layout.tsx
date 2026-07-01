@@ -51,38 +51,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  let hasPlanAlert = false;
-  try {
-    const supabase = await createClient();
-    const { data: userData } = await supabase.auth.getUser();
-    if (userData.user) {
-      const now = new Date();
-      const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-      const { data: budget } = await supabase
-        .from("budgets")
-        .select("id, budget_lines(category_id, allocated_amount)")
-        .eq("month", monthStart)
-        .maybeSingle();
-      if (budget?.budget_lines?.length) {
-        const { data: txns } = await supabase
-          .from("transactions")
-          .select("category_id, amount")
-          .gte("occurred_at", monthStart)
-          .lt("amount", 0);
-        const spent = new Map<string, number>();
-        for (const t of txns ?? []) {
-          if (!t.category_id) continue;
-          spent.set(t.category_id, (spent.get(t.category_id) ?? 0) + Math.abs(t.amount));
-        }
-        hasPlanAlert = budget.budget_lines.some(
-          (line) => (spent.get(line.category_id) ?? 0) > line.allocated_amount,
-        );
-      }
-    }
-  } catch {
-    // non-critical — badge silently absent on error
-  }
-
   return (
     <html
       lang="en"
@@ -99,7 +67,7 @@ export default async function RootLayout({
         <PageTransition>{children}</PageTransition>
         {/* spacer so fixed bottom nav never covers content */}
         <div className="h-16 shrink-0" aria-hidden="true" />
-        <BottomNav hasPlanAlert={hasPlanAlert} />
+        <BottomNav />
         <Toast />
       </body>
     </html>

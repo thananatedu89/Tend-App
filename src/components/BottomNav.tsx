@@ -26,12 +26,12 @@ const tabs = [
   },
   null, // center + placeholder
   {
-    label: "Plan",
-    href: "/budget",
-    match: (p: string) => p.startsWith("/budget"),
+    label: "Goals",
+    href: "/goals",
+    match: (p: string) => p.startsWith("/goals"),
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 20h4v-6H4v6zM10 20h4V10h-4v10zM16 20h4V4h-4v16z" />
+        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
       </svg>
     ),
   },
@@ -48,7 +48,7 @@ const tabs = [
   },
 ];
 
-export function BottomNav({ hasPlanAlert }: { hasPlanAlert?: boolean }) {
+export function BottomNav({ hasPlanAlert: _hasPlanAlert }: { hasPlanAlert?: boolean }) {
   const pathname = usePathname();
   if (pathname === "/login" || pathname.startsWith("/onboarding")) return null;
 
@@ -75,7 +75,6 @@ export function BottomNav({ hasPlanAlert }: { hasPlanAlert?: boolean }) {
           }
 
           const active = tab.match(pathname);
-          const showBadge = hasPlanAlert && tab.href === "/budget";
           return (
             <a
               key={tab.href}
@@ -84,15 +83,7 @@ export function BottomNav({ hasPlanAlert }: { hasPlanAlert?: boolean }) {
                 active ? "text-ink" : "text-ink/35 hover:text-ink/60"
               }`}
             >
-              <span className="relative">
-                {tab.icon}
-                {showBadge && (
-                  <span
-                    className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full"
-                    style={{ background: "var(--color-terracotta)" }}
-                  />
-                )}
-              </span>
+              {tab.icon}
               <span className="font-body text-[10px] leading-none">{tab.label}</span>
             </a>
           );

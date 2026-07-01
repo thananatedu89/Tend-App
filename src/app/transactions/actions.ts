@@ -223,6 +223,47 @@ export async function updateTransaction(formData: FormData) {
   redirect("/transactions?toast=Changes+saved");
 }
 
+export async function saveAsTemplate(formData: FormData) {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) redirect("/login");
+
+  const name = String(formData.get("name") ?? "").trim();
+  const amount = parseFloat(formData.get("amount") as string);
+  const categoryId = String(formData.get("category_id") ?? "") || null;
+  const accountId = String(formData.get("account_id") ?? "") || null;
+  const note = String(formData.get("note") ?? "").trim() || null;
+  const returnTo = String(formData.get("return_to") ?? "/transactions");
+
+  if (!name || isNaN(amount) || amount <= 0) redirect(`${returnTo}?error=Invalid+template`);
+
+  await supabase.from("transaction_templates").insert({
+    user_id: userData.user.id,
+    name,
+    amount,
+    category_id: categoryId,
+    account_id: accountId,
+    note,
+  });
+
+  revalidatePath("/transactions/new");
+  redirect(`${returnTo}?toast=Template+saved`);
+}
+
+export async function deleteTemplate(formData: FormData) {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) redirect("/login");
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) redirect("/transactions/new");
+
+  await supabase.from("transaction_templates").delete().eq("id", id).eq("user_id", userData.user.id);
+
+  revalidatePath("/transactions/new");
+  redirect("/transactions/new?toast=Template+removed");
+}
+
 export async function deleteTransaction(formData: FormData) {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();

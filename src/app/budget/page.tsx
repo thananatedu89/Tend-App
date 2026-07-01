@@ -3,6 +3,7 @@ import { startOfMonth } from "@/lib/month";
 import { formatThb } from "@/lib/format";
 import { setBudget, setBudgetLines, applyRollover, copyLastMonthBudget } from "./actions";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import { BudgetAISuggest } from "@/components/BudgetAISuggest";
 
 const monthFmt = new Intl.DateTimeFormat("en-GB", {
   month: "long",
@@ -172,6 +173,17 @@ export default async function BudgetPage({
             Cancel
           </a>
         </form>
+
+        {catAvg.size > 0 && (
+          <BudgetAISuggest
+            categories={[...(categories ?? [])].map(c => ({
+              id: c.id,
+              name: c.name,
+              avg: catAvg.get(c.id) ?? 0,
+            }))}
+            totalAvg={[...catAvg.values()].reduce((s, v) => s + v, 0)}
+          />
+        )}
 
         {/* Rollover prompt */}
         {rollover > 0 && (

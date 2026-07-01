@@ -24,7 +24,7 @@ export function AIInsightCard() {
       <section className="rounded-2xl border border-mist bg-surface px-5 py-4 flex items-center justify-between gap-4">
         <div>
           <p className="font-body text-sm font-medium">AI spending summary</p>
-          <p className="font-body text-xs text-ink/50 mt-0.5">90-day insights, powered by Claude</p>
+          <p className="font-body text-xs text-ink/50 mt-0.5">90-day insights, powered by Gemini</p>
         </div>
         <button
           onClick={generate}
@@ -70,7 +70,7 @@ export function AIInsightCard() {
   return (
     <section className="rounded-2xl border border-mist bg-surface px-5 py-5">
       <p className="font-body text-[10px] text-ink/35 uppercase tracking-widest mb-3">
-        AI summary · Claude
+        AI summary · Gemini
       </p>
       <div className="font-body text-sm text-ink/80 leading-relaxed whitespace-pre-wrap">
         {summary}

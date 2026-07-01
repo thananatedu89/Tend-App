@@ -20,6 +20,8 @@ export function TransactionFilters({
   date_from,
   date_to,
   type,
+  amount_min,
+  amount_max,
 }: {
   categories: Cat[];
   q?: string;
@@ -27,9 +29,11 @@ export function TransactionFilters({
   date_from?: string;
   date_to?: string;
   type?: string;
+  amount_min?: string;
+  amount_max?: string;
 }) {
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const [open, setOpen] = useState(!!(category || date_from || date_to));
+  const [open, setOpen] = useState(!!(category || date_from || date_to || amount_min || amount_max));
 
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
@@ -46,8 +50,8 @@ export function TransactionFilters({
   ];
 
   const activePreset = presets.find((p) => p.from === date_from && p.to === date_to);
-  const hasAdvanced = !!(category || date_from || date_to);
-  const hasAny = !!(q || type || category || date_from || date_to);
+  const hasAdvanced = !!(category || date_from || date_to || amount_min || amount_max);
+  const hasAny = !!(q || type || category || date_from || date_to || amount_min || amount_max);
 
   const debounce = (fn: () => void) => {
     clearTimeout(timerRef.current);
@@ -62,6 +66,8 @@ export function TransactionFilters({
         {category && <input type="hidden" name="category" value={category} />}
         {date_from && <input type="hidden" name="date_from" value={date_from} />}
         {date_to && <input type="hidden" name="date_to" value={date_to} />}
+        {amount_min && <input type="hidden" name="amount_min" value={amount_min} />}
+        {amount_max && <input type="hidden" name="amount_max" value={amount_max} />}
         <input
           name="q"
           type="search"
@@ -81,7 +87,7 @@ export function TransactionFilters({
           return (
             <a
               key={label}
-              href={buildHref({ q, category, date_from, date_to, type: val || null })}
+              href={buildHref({ q, category, date_from, date_to, amount_min, amount_max, type: val || null })}
               className={`font-body text-xs px-3 py-1.5 rounded-full border transition-colors ${
                 active
                   ? "bg-ink text-paper border-ink"
@@ -114,6 +120,8 @@ export function TransactionFilters({
             {type && <input type="hidden" name="type" value={type} />}
             {date_from && <input type="hidden" name="date_from" value={date_from} />}
             {date_to && <input type="hidden" name="date_to" value={date_to} />}
+            {amount_min && <input type="hidden" name="amount_min" value={amount_min} />}
+            {amount_max && <input type="hidden" name="amount_max" value={amount_max} />}
             <select
               name="category"
               defaultValue={category ?? ""}
@@ -140,6 +148,8 @@ export function TransactionFilters({
                     q,
                     category,
                     type,
+                    amount_min,
+                    amount_max,
                     date_from: active ? null : p.from,
                     date_to: active ? null : p.to,
                   })}
@@ -160,6 +170,8 @@ export function TransactionFilters({
             {q && <input type="hidden" name="q" value={q} />}
             {type && <input type="hidden" name="type" value={type} />}
             {category && <input type="hidden" name="category" value={category} />}
+            {amount_min && <input type="hidden" name="amount_min" value={amount_min} />}
+            {amount_max && <input type="hidden" name="amount_max" value={amount_max} />}
             <input
               name="date_from"
               type="date"
@@ -176,6 +188,42 @@ export function TransactionFilters({
               onChange={(e) => debounce(() => (e.target.form as HTMLFormElement).requestSubmit())}
             />
           </form>
+
+          {/* Amount range — auto-submits on change */}
+          <form method="GET" className="flex gap-2 items-center">
+            {q && <input type="hidden" name="q" value={q} />}
+            {type && <input type="hidden" name="type" value={type} />}
+            {category && <input type="hidden" name="category" value={category} />}
+            {date_from && <input type="hidden" name="date_from" value={date_from} />}
+            {date_to && <input type="hidden" name="date_to" value={date_to} />}
+            <div className="flex-1 relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-body text-xs text-ink/40">฿</span>
+              <input
+                name="amount_min"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                placeholder="Min"
+                defaultValue={amount_min ?? ""}
+                className="font-body w-full rounded-xl border border-mist bg-paper pl-6 pr-2 py-2 text-sm text-ink outline-none focus:border-sage"
+                onChange={(e) => debounce(() => (e.target.form as HTMLFormElement).requestSubmit())}
+              />
+            </div>
+            <span className="font-body text-xs text-ink/40">–</span>
+            <div className="flex-1 relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-body text-xs text-ink/40">฿</span>
+              <input
+                name="amount_max"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                placeholder="Max"
+                defaultValue={amount_max ?? ""}
+                className="font-body w-full rounded-xl border border-mist bg-paper pl-6 pr-2 py-2 text-sm text-ink outline-none focus:border-sage"
+                onChange={(e) => debounce(() => (e.target.form as HTMLFormElement).requestSubmit())}
+              />
+            </div>
+          </form>
         </div>
       )}
 
@@ -184,7 +232,7 @@ export function TransactionFilters({
         <div className="flex flex-wrap gap-1.5 pt-0.5">
           {type && (
             <a
-              href={buildHref({ q, category, date_from, date_to })}
+              href={buildHref({ q, category, date_from, date_to, amount_min, amount_max })}
               className="font-body text-xs px-2.5 py-1 rounded-full bg-ink/8 text-ink/70 flex items-center gap-1 hover:bg-ink/15 transition-colors"
             >
               {type === "expense" ? "Expenses" : "Income"} ×
@@ -192,7 +240,7 @@ export function TransactionFilters({
           )}
           {category && (
             <a
-              href={buildHref({ q, type, date_from, date_to })}
+              href={buildHref({ q, type, date_from, date_to, amount_min, amount_max })}
               className="font-body text-xs px-2.5 py-1 rounded-full bg-ink/8 text-ink/70 flex items-center gap-1 hover:bg-ink/15 transition-colors"
             >
               {categories.find((c) => c.id === category)?.name ?? "Category"} ×
@@ -200,10 +248,22 @@ export function TransactionFilters({
           )}
           {(date_from || date_to) && (
             <a
-              href={buildHref({ q, type, category })}
+              href={buildHref({ q, type, category, amount_min, amount_max })}
               className="font-body text-xs px-2.5 py-1 rounded-full bg-ink/8 text-ink/70 flex items-center gap-1 hover:bg-ink/15 transition-colors"
             >
               {activePreset?.label ?? `${date_from ?? "…"} – ${date_to ?? "…"}`} ×
+            </a>
+          )}
+          {(amount_min || amount_max) && (
+            <a
+              href={buildHref({ q, type, category, date_from, date_to })}
+              className="font-body text-xs px-2.5 py-1 rounded-full bg-ink/8 text-ink/70 flex items-center gap-1 hover:bg-ink/15 transition-colors"
+            >
+              {amount_min && amount_max
+                ? `฿${amount_min} – ฿${amount_max}`
+                : amount_min
+                ? `฿${amount_min}+`
+                : `up to ฿${amount_max}`} ×
             </a>
           )}
           {hasAny && (

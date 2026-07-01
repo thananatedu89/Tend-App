@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { updateTransaction, deleteTransaction } from "../../actions";
+import { updateTransaction, deleteTransaction, saveAsTemplate } from "../../actions";
 import { catOptionLabel } from "@/components/CategoryIcon";
 import { ReceiptUpload } from "@/components/ReceiptUpload";
 import { ConfirmButton } from "@/components/ConfirmButton";
@@ -180,7 +180,33 @@ export default async function EditTransactionPage({
           </button>
         </form>
 
-        <form action={deleteTransaction} className="mt-6">
+        {/* Save as template */}
+        <details className="mt-6 mb-2">
+          <summary className="font-body text-sm text-ink/35 cursor-pointer list-none text-center hover:text-ink/60 transition-colors">
+            Save as quick template ▾
+          </summary>
+          <form action={saveAsTemplate} className="flex gap-2 mt-3">
+            <input type="hidden" name="amount" value={absAmount} />
+            <input type="hidden" name="category_id" value={transaction.category_id ?? ""} />
+            <input type="hidden" name="account_id" value={transaction.account_id ?? ""} />
+            <input type="hidden" name="note" value={transaction.note ?? ""} />
+            <input type="hidden" name="return_to" value={`/transactions/${id}/edit`} />
+            <input
+              name="name"
+              type="text"
+              required
+              placeholder="Template name"
+              defaultValue={transaction.note ?? ""}
+              maxLength={40}
+              className="font-body flex-1 rounded-xl border border-mist bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-sage"
+            />
+            <button type="submit" className="font-body rounded-xl bg-ink px-4 py-2 text-sm text-paper shrink-0">
+              Save
+            </button>
+          </form>
+        </details>
+
+        <form action={deleteTransaction} className="mt-4">
           <input type="hidden" name="id" value={transaction.id} />
           <ConfirmButton className="font-body text-sm text-ink/30 hover:text-ink/60 transition-colors">
             Remove this transaction

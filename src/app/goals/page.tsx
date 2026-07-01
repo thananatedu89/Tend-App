@@ -18,13 +18,18 @@ export default async function GoalsPage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <header className="px-6 pt-9 pb-6">
-        <h1 className="font-display text-3xl">Goals</h1>
-        {list.length > 0 && (
-          <p className="font-body text-sm text-ink/50 mt-1">
-            {formatThb(totalSaved)} saved of {formatThb(totalTarget)}
-          </p>
-        )}
+      <header className="px-6 pt-9 pb-6 flex items-start justify-between">
+        <div>
+          <h1 className="font-display text-3xl">Goals</h1>
+          {list.length > 0 && (
+            <p className="font-body text-sm text-ink/50 mt-1">
+              {formatThb(totalSaved)} saved of {formatThb(totalTarget)}
+            </p>
+          )}
+        </div>
+        <a href="/budget" className="font-body text-xs text-ink/40 hover:text-ink/70 transition-colors mt-2">
+          Budget →
+        </a>
       </header>
 
       <div className="flex flex-col gap-4 px-6 pb-10">

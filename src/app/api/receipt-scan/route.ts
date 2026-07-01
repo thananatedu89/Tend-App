@@ -13,11 +13,11 @@ export async function POST(req: NextRequest) {
   // Forward to OCR.space (free tier, no signup required with helloworld key)
   const ocrForm = new FormData();
   ocrForm.append("file", file);
-  ocrForm.append("language", "eng");
+  ocrForm.append("language", "tha");   // Thai + English bilingual
   ocrForm.append("isOverlayRequired", "false");
   ocrForm.append("detectOrientation", "true");
   ocrForm.append("scale", "true");
-  ocrForm.append("OCREngine", "2"); // engine 2 is better for printed text
+  ocrForm.append("OCREngine", "2");
 
   const apiKey = process.env.OCR_SPACE_KEY ?? "helloworld";
   const ocrRes = await fetch("https://api.ocr.space/parse/image", {
@@ -111,24 +111,29 @@ function parseReceipt(text: string) {
     if (m) { const iso = fn(m); if (iso) { date = iso; break; } }
   }
 
-  // --- Merchant name: look in first 8 lines for meaningful text ---
+  // --- Merchant name: look in first 10 lines for meaningful text ---
+  // Prefer Thai lines (บริษัท...) or bilingual lines with (English) in parens
   let note: string | null = null;
-  const topLines = lines.slice(0, Math.min(10, lines.length));
+  const topLines = lines.slice(0, Math.min(12, lines.length));
   for (const line of topLines) {
+    const hasThai = /[ก-๿]/.test(line);
+    const hasLatin = /[a-zA-Z]{3,}/.test(line);
+    const isMeaningful = hasThai || hasLatin;
+
     if (
       line.length >= 5 &&
-      line.length <= 60 &&
+      line.length <= 80 &&
+      isMeaningful &&
       !looksLikeCode(line) &&
       !headerNoise.test(line) &&
       !netKeywords.test(line) &&
       !totalKeywords.test(line) &&
-      !/^[\d\+\-\*\/฿=\.\,\s\:]+$/.test(line) &&   // not a pure number/math/time line
-      !/^\d[\-:]\d/.test(line) &&                   // not a time/code like "0-0:0" or "1:30"
-      !/^[=\-\<\>]{2,}/.test(line)                  // not a separator line like "====" or "->>"
+      !/^[\d\+\-\*\/฿=\.\,\s\:]+$/.test(line) &&
+      !/^\d[\-:]\d/.test(line) &&
+      !/^[=\-\<\>]{2,}/.test(line)
     ) {
-      // Prefer lines that contain Thai characters (company names in Thailand are in Thai)
-      note = line;
-      if (/[฀-๿]/.test(line)) break; // stop at first Thai line
+      note = line.slice(0, 80);
+      if (hasThai) break; // Thai line = company name, stop here
     }
   }
 

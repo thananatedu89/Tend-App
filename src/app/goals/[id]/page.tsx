@@ -24,7 +24,12 @@ export default async function GoalDetailPage({
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) redirect("/login");
 
-  const [{ data: goal }, { data: deposits }] = await Promise.all([
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+  threeMonthsAgo.setDate(1);
+  const projSince = threeMonthsAgo.toISOString().slice(0, 10);
+
+  const [{ data: goal }, { data: deposits }, { data: recentTxns }] = await Promise.all([
     supabase
       .from("goals")
       .select("id, name, target_amount, saved_amount, created_at")
@@ -36,6 +41,10 @@ export default async function GoalDetailPage({
       .eq("goal_id", id)
       .order("occurred_at", { ascending: false })
       .order("created_at", { ascending: false }),
+    supabase
+      .from("transactions")
+      .select("amount, occurred_at")
+      .gte("occurred_at", projSince),
   ]);
 
   if (!goal) notFound();
@@ -47,6 +56,33 @@ export default async function GoalDetailPage({
   const done = remaining === 0;
   const isEditing = edit === "1";
   const todayStr = new Date().toISOString().slice(0, 10);
+
+  // Savings rate projection
+  const monthlyMap = new Map<string, { income: number; expenses: number }>();
+  for (const t of recentTxns ?? []) {
+    const mo = t.occurred_at.slice(0, 7);
+    const prev = monthlyMap.get(mo) ?? { income: 0, expenses: 0 };
+    if (t.amount > 0) prev.income += t.amount;
+    else prev.expenses += Math.abs(t.amount);
+    monthlyMap.set(mo, prev);
+  }
+  const hasIncome = [...monthlyMap.values()].some((m) => m.income > 0);
+  const monthlySavingsList = [...monthlyMap.values()].map((m) => m.income - m.expenses);
+  const avgMonthlySavings =
+    monthlySavingsList.length > 0
+      ? monthlySavingsList.reduce((s, v) => s + v, 0) / monthlySavingsList.length
+      : 0;
+
+  let projectionText: string | null = null;
+  if (!done && remaining > 0 && hasIncome && avgMonthlySavings > 0) {
+    const monthsToReach = Math.ceil(remaining / avgMonthlySavings);
+    const projDate = new Date();
+    projDate.setMonth(projDate.getMonth() + monthsToReach);
+    const projStr = projDate.toLocaleString("en", { month: "long", year: "numeric" });
+    projectionText = `${formatThb(Math.round(avgMonthlySavings))}/mo saved on avg — on track for ${projStr}.`;
+  } else if (!done && remaining > 0 && hasIncome && avgMonthlySavings <= 0) {
+    projectionText = "Expenses are exceeding income — try saving a bit more each month.";
+  }
 
   return (
     <main className="flex flex-1 flex-col">
@@ -106,6 +142,11 @@ export default async function GoalDetailPage({
             <p style={{ fontSize: "14.5px", color: "var(--color-ink)", opacity: 0.55, lineHeight: 1.5 }}>
               {done ? "Goal reached." : `${formatThb(goal.saved_amount)} saved of ${formatThb(goal.target_amount)}`}
             </p>
+            {projectionText && (
+              <p style={{ fontSize: "13px", color: "var(--color-ink)", opacity: 0.45, lineHeight: 1.5, marginTop: "6px" }}>
+                {projectionText}
+              </p>
+            )}
             <div className="mt-5">
               <div style={{ height: "6px", borderRadius: "999px", background: "var(--color-mist)", overflow: "hidden" }}>
                 <div style={{ width: `${pct}%`, height: "100%", background: "var(--color-sage)", borderRadius: "999px", transition: "width .3s ease" }} />

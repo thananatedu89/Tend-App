@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isPlus } from "@/lib/subscription";
 
 function csvEscape(value: string | null | undefined): string {
   const str = value ?? "";
@@ -14,6 +15,9 @@ export async function GET() {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!await isPlus(userData.user.id)) {
+    return NextResponse.redirect(new URL("/upgrade", process.env.NEXT_PUBLIC_APP_URL ?? "https://tend-app-dusky.vercel.app"));
   }
 
   const { data: transactions, error } = await supabase

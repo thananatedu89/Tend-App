@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createWallet } from "./actions";
+import { isPlus } from "@/lib/subscription";
+import { PlusGate } from "@/components/PlusGate";
 
 export default async function WalletsPage({
   searchParams,
@@ -11,6 +13,9 @@ export default async function WalletsPage({
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) redirect("/login");
+  if (!await isPlus(userData.user.id)) {
+    return <PlusGate backHref="/settings" title="Shared wallets" description="Share a budget with a partner or household and track spending together." />;
+  }
 
   const { data: memberships } = await supabase
     .from("wallet_members")

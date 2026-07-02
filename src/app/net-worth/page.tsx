@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatThb } from "@/lib/format";
+import { isPlus } from "@/lib/subscription";
+import { PlusGate } from "@/components/PlusGate";
 
 function buildLinePath(pts: { x: number; y: number }[]): string {
   if (pts.length < 2) return "";
@@ -17,6 +19,9 @@ export default async function NetWorthPage() {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) redirect("/login");
+  if (!await isPlus(userData.user.id)) {
+    return <PlusGate backHref="/settings" title="Net worth" description="Track your total net worth across all accounts with history and trends." />;
+  }
 
   const since = new Date();
   since.setMonth(since.getMonth() - 6);

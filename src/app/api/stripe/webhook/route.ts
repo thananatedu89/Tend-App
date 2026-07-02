@@ -27,11 +27,24 @@ export async function POST(req: NextRequest) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
       if (session.mode === "payment") {
+        // Lifetime purchase
         await updateProfile(session.customer as string, {
           subscription_tier:     "plus",
           subscription_status:   "active",
           subscription_interval: "lifetime",
           subscription_end_at:   null,
+        });
+      } else if (session.mode === "subscription" && session.subscription) {
+        // Subscription checkout — set Plus immediately so the success page reflects the new tier.
+        // customer.subscription.created also fires shortly after, but this avoids a race where
+        // the user lands on /upgrade?success=1 before that event is processed.
+        const sub = await getStripe().subscriptions.retrieve(session.subscription as string);
+        const interval = sub.items.data[0]?.price.recurring?.interval === "year" ? "annual" : "monthly";
+        await updateProfile(session.customer as string, {
+          subscription_tier:     "plus",
+          subscription_status:   "active",
+          subscription_interval: interval,
+          subscription_end_at:   new Date(sub.current_period_end * 1000).toISOString(),
         });
       }
       break;
@@ -42,13 +55,12 @@ export async function POST(req: NextRequest) {
       const sub      = event.data.object as Stripe.Subscription;
       const interval = sub.items.data[0]?.price.recurring?.interval === "year" ? "annual" : "monthly";
       const active   = ["active", "trialing"].includes(sub.status);
-      const endAt    = (sub as unknown as { current_period_end: number }).current_period_end;
 
       await updateProfile(sub.customer as string, {
         subscription_tier:     active ? "plus" : "free",
         subscription_status:   sub.status,
         subscription_interval: interval,
-        subscription_end_at:   new Date(endAt * 1000).toISOString(),
+        subscription_end_at:   new Date(sub.current_period_end * 1000).toISOString(),
       });
       break;
     }

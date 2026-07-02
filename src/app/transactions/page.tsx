@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { BackButton } from "@/components/BackButton";
 import { TransactionFilters } from "@/components/TransactionFilters";
 import { BulkActions } from "@/components/BulkActions";
 
@@ -63,7 +64,7 @@ export default async function TransactionsPage({
     <main className="flex flex-1 flex-col">
       <header className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-4">
-          <a href="/" className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors">←</a>
+          <BackButton />
           <h1 className="font-display text-lg">Transactions</h1>
         </div>
         <a href="/import" className="font-body text-xs text-ink/40 hover:text-ink/70 transition-colors">Import</a>

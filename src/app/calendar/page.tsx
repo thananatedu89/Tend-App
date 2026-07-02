@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { BackButton } from "@/components/BackButton";
 import { formatThb } from "@/lib/format";
 import {
   startOfMonth,
@@ -68,12 +69,7 @@ export default async function CalendarPage({
   return (
     <main className="flex flex-1 flex-col">
       <header className="flex items-center gap-4 px-6 py-4">
-        <a
-          href="/"
-          className="font-body text-sm text-ink/40 hover:text-ink/70 transition-colors"
-        >
-          ←
-        </a>
+        <BackButton />
         <h1 className="font-display text-lg">Calendar</h1>
       </header>
 

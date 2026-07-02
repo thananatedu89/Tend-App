@@ -222,6 +222,13 @@ export default async function SettingsPage() {
                 Sign out
               </button>
             </form>
+            <a
+              href="/settings/delete"
+              className="flex items-center justify-between px-4 py-3.5 hover:bg-mist/30 transition-colors"
+            >
+              <span className="font-body text-sm text-ink/40">Delete account</span>
+              <span className="font-body text-xs text-ink/30">→</span>
+            </a>
           </div>
         </section>
 

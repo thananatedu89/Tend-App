@@ -8,6 +8,25 @@ export default async function LoginPage({
   const { error, mode, notice } = await searchParams;
   const isSignup = mode === "signup";
 
+  if (notice === "account-deleted") {
+    return (
+      <main className="flex flex-1 flex-col items-center justify-center px-6">
+        <div className="w-full max-w-sm text-center">
+          <h1 className="font-display text-3xl mb-1">Account deleted</h1>
+          <p className="font-body text-sm text-ink/60">
+            Your account and all your data have been permanently removed.
+          </p>
+          <a
+            href="/login"
+            className="font-body mt-6 inline-block text-sm text-sage underline"
+          >
+            Back to log in
+          </a>
+        </div>
+      </main>
+    );
+  }
+
   if (notice === "confirm-email") {
     return (
       <main className="flex flex-1 flex-col items-center justify-center px-6">

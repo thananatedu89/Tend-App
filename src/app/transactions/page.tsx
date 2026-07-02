@@ -2,14 +2,14 @@ import { createClient } from "@/lib/supabase/server";
 import { BackButton } from "@/components/BackButton";
 import { TransactionFilters } from "@/components/TransactionFilters";
 import { BulkActions } from "@/components/BulkActions";
-
+import { categorizeUncategorized } from "./actions";
 
 export default async function TransactionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; category?: string; date_from?: string; date_to?: string; type?: string; amount_min?: string; amount_max?: string; imported?: string; skipped?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; date_from?: string; date_to?: string; type?: string; amount_min?: string; amount_max?: string; imported?: string; skipped?: string; categorized?: string; toast?: string }>;
 }) {
-  const { q, category, date_from, date_to, type, amount_min, amount_max, imported, skipped } = await searchParams;
+  const { q, category, date_from, date_to, type, amount_min, amount_max, imported, skipped, categorized, toast } = await searchParams;
   const supabase = await createClient();
 
   const { data: categories } = await supabase
@@ -70,11 +70,40 @@ export default async function TransactionsPage({
         <a href="/import" className="font-body text-xs text-ink/40 hover:text-ink/70 transition-colors">Import</a>
       </header>
 
-      {imported && (
+      {toast && (
         <p className="font-body mx-6 mb-2 rounded-md bg-mist/40 px-3 py-2 text-sm text-ink/70">
-          {imported} transaction{Number(imported) !== 1 ? "s" : ""} imported
-          {skipped ? `, ${skipped} skipped` : ""}.
+          {toast}
         </p>
+      )}
+
+      {imported && (
+        <div className="mx-6 mb-2 rounded-md bg-mist/40 px-3 py-2.5 flex flex-col gap-1.5">
+          <p className="font-body text-sm text-ink/70">
+            {imported} transaction{Number(imported) !== 1 ? "s" : ""} imported
+            {categorized ? `, ${categorized} categorized automatically` : ""}
+            {skipped ? `, ${skipped} skipped` : ""}.
+          </p>
+          {categorized && Number(imported) - Number(categorized) > 0 && (
+            <form action={categorizeUncategorized}>
+              <button
+                type="submit"
+                className="font-body text-xs text-sage hover:opacity-70 transition-opacity"
+              >
+                Categorize {Number(imported) - Number(categorized)} remaining →
+              </button>
+            </form>
+          )}
+          {!categorized && (
+            <form action={categorizeUncategorized}>
+              <button
+                type="submit"
+                className="font-body text-xs text-sage hover:opacity-70 transition-opacity"
+              >
+                Auto-categorize all →
+              </button>
+            </form>
+          )}
+        </div>
       )}
 
       <TransactionFilters

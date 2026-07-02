@@ -6,6 +6,44 @@ import { createClient } from "@/lib/supabase/server";
 import { sendPushToUser } from "@/lib/push";
 import { formatThb } from "@/lib/format";
 import { startOfMonth } from "@/lib/month";
+import { autoCategorize } from "@/lib/auto-categorize";
+
+export async function categorizeUncategorized() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const [{ data: txns }, { data: categories }] = await Promise.all([
+    supabase
+      .from("transactions")
+      .select("id, note, amount")
+      .eq("user_id", user.id)
+      .is("category_id", null),
+    supabase.from("categories").select("id, name"),
+  ]);
+
+  if (!txns?.length) {
+    redirect("/transactions?toast=Nothing+to+categorize");
+  }
+
+  const categoryMap = new Map((categories ?? []).map((c) => [c.name.toLowerCase(), c.id]));
+  let updated = 0;
+
+  for (const t of txns) {
+    const categoryId = autoCategorize(t.note ?? "", t.amount, categoryMap);
+    if (!categoryId) continue;
+    await supabase
+      .from("transactions")
+      .update({ category_id: categoryId })
+      .eq("id", t.id)
+      .eq("user_id", user.id);
+    updated++;
+  }
+
+  revalidatePath("/");
+  revalidatePath("/transactions");
+  redirect(`/transactions?toast=${encodeURIComponent(`${updated} transaction${updated !== 1 ? "s" : ""} categorized`)}`);
+}
 
 async function uploadReceipt(
   supabase: Awaited<ReturnType<typeof createClient>>,

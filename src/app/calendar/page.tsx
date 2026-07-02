@@ -115,24 +115,23 @@ export default async function CalendarPage({
         {/* Calendar grid */}
         <div className="grid grid-cols-7 gap-px bg-mist rounded-md overflow-hidden border border-mist">
           {cells.map((cell, i) => {
-            const isToday =
-              viewing &&
-              cell.day === today.getDate();
-            const intensity =
-              cell.spent > 0 ? 0.08 + (cell.spent / maxDaySpend) * 0.35 : 0;
+            const isToday = viewing && cell.day === today.getDate();
+            const intensity = cell.spent > 0 ? 0.08 + (cell.spent / maxDaySpend) * 0.35 : 0;
+            const dateStr = cell.day !== null
+              ? `${y}-${String(m + 1).padStart(2, "0")}-${String(cell.day).padStart(2, "0")}`
+              : null;
 
             return (
               <div
                 key={i}
-                className="bg-paper min-h-[52px] p-1 flex flex-col"
-                style={
-                  intensity > 0
-                    ? { backgroundColor: `rgba(22,32,28,${intensity})` }
-                    : undefined
-                }
+                className="bg-paper min-h-[52px] flex flex-col"
+                style={intensity > 0 ? { backgroundColor: `rgba(22,32,28,${intensity})` } : undefined}
               >
-                {cell.day !== null && (
-                  <>
+                {dateStr !== null && (
+                  <a
+                    href={`/transactions?date_from=${dateStr}&date_to=${dateStr}`}
+                    className="flex flex-col flex-1 p-1 hover:bg-ink/5 transition-colors"
+                  >
                     <span
                       className={`font-body text-[10px] leading-none ${
                         isToday ? "text-sage font-medium" : "text-ink/40"
@@ -145,7 +144,7 @@ export default async function CalendarPage({
                         {cellAmount(cell.spent)}
                       </span>
                     )}
-                  </>
+                  </a>
                 )}
               </div>
             );
